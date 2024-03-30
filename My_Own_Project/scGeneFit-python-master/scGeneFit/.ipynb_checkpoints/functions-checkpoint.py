@@ -315,6 +315,50 @@ def one_vs_all_selection(data, labels, num_bins=20):
     return markers
 
 
+#irf
+
+
+def one_vs_all_selection_per_class(data, labels, num_bins=20, num_markers=5):
+    data_by_label = {}
+    unique_labels = list(set(labels))
+    [N, d] = data.shape
+    
+    # Ensure num_markers does not exceed the number of genes
+    num_markers = min(num_markers, d)
+    
+    # Organize data by label
+    for lab in unique_labels:
+        X = [data[x, :] for x in range(len(labels)) if labels[x] == lab]
+        data_by_label[lab] = X
+
+    bins = np.linspace(0, data.max(), num_bins + 1)
+    class_markers = []
+
+    for current_label in unique_labels:
+        gene_scores = []
+        current_class = np.array(data_by_label[current_label])
+        others = np.concatenate([data_by_label[lab] for lab in unique_labels if lab != current_label])
+
+        for gene in range(d):
+            [h1, _] = np.histogram(current_class[:, gene], bins)
+            h1 = h1.reshape(1, -1) / current_class.shape[0]
+            [h2, _] = np.histogram(others[:, gene], bins)
+            h2 = h2.reshape(1, -1) / others.shape[0]
+            dist = -sklearn.metrics.pairwise.additive_chi2_kernel(h1, h2)
+            gene_scores.append((gene, dist.sum()))
+
+        # Sort genes for the current class based on their score
+        gene_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Select the top `num_markers` or all if `num_markers` exceeds total genes
+        top_markers = [gene_score[0] for gene_score in gene_scores[:num_markers]]
+        class_markers = class_markers+top_markers
+
+    return class_markers
+
+
+
+
 def optimize_epsilon(data_train, labels_train, data_test, labels_test, num_markers, method='centers', fixed_parameters={}, bounds=[(0.2 , 10)], x0=[1], max_fun_evaluations=20, n_experiments=5, clf=None, hierarchy=False, verbose=True):
     """
     Finds the optimal value of epsilon using scipy.optimize.dual_annealing
