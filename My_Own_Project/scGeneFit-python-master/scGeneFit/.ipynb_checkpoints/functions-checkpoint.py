@@ -280,7 +280,7 @@ def plot_marker_selection(data, markers, names, perplexity=40):
                     c=[aux[i[0]]], s=5, label=names[i[0]])
     ax2.set_title('{} markers'.format(len(markers)))
     plt.legend(bbox_to_anchor=(1, 1))
-    plt.subplots_adjust(right=0.7)
+    plt.subplots_adjust(right=0.7, wspace=0.5)
     return fig
 
 
