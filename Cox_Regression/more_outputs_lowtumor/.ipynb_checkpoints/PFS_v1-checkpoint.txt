@@ -1,0 +1,28 @@
+== model_info ==
+model: <class 'lifelines.fitters.coxph_fitter.CoxPHFitter'>
+duration col: PSA_progression (months)
+event col: PSA event (1= Progression)
+baseline estimation: breslow
+number of observations: 40
+number of events observed: 35
+time fit was run: 2024-05-20 16:37:38 UTC
+
+== cph.summary ==
+                                                   coef   exp(coef)  se(coef)  coef lower 95%  coef upper 95%  exp(coef) lower 95%  exp(coef) upper 95%  cmp to         z         p  -log2(p)
+covariate                                                                                                                                                                                    
+Age                                           -0.033744    0.966819  0.020730       -0.074375        0.006886             0.928324             1.006910     0.0 -1.627785  0.103571  3.271314
+Baseline PSA                                  -0.018616    0.981557  0.010492       -0.039180        0.001949             0.961578             1.001951     0.0 -1.774226  0.076026  3.717369
+Metagene                                      -0.042990    0.957921  0.809235       -1.629061        1.543081             0.196114             4.678986     0.0 -0.053124  0.957633  0.062455
+Gleason total                                 -0.154708    0.856665  0.252036       -0.648690        0.339274             0.522730             1.403928     0.0 -0.613833  0.539326  0.890771
+Line of Therapy in Metastatic Setting          0.407269    1.502709  0.152225        0.108914        0.705625             1.115066             2.025111     0.0  2.675443  0.007463  7.066019
+ctDNA level                                   -0.026588    0.973762  0.022316       -0.070326        0.017150             0.932090             1.017297     0.0 -1.191461  0.233473  2.098675
+tumor_fraction                                 4.632980  102.819985  3.275729       -1.787331       11.053291             0.167406         63151.437404     0.0  1.414335  0.157263  2.668745
+Metastatic Disease Burden                      1.452418    4.273437  0.526691        0.420122        2.484715             1.522147            11.997698     0.0  2.757627  0.005822  7.424204
+Race_Caucasian                                -0.083441    0.919945  0.501715       -1.066785        0.899902             0.344113             2.459362     0.0 -0.166312  0.867911  0.204381
+AR/enhancer alterations detected in cfDNA_Yes  1.000637    2.720014  0.597977       -0.171377        2.172651             0.842504             8.781533     0.0  1.673370  0.094255  3.407294
+
+== Additional Metrics ==
+Concordance: 0.7583798882681564
+Partial AIC: 193.56980287024396
+log-likelihood ratio test: 26.283051550080586
+negative log2(p) of ll-ratio test: 8.209793996381123

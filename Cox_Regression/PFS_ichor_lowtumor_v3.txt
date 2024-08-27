@@ -1,0 +1,21 @@
+== model_info ==
+model: <class 'lifelines.fitters.coxph_fitter.CoxPHFitter'>
+duration col: PSA_progression (months)
+event col: PSA event (1= Progression)
+baseline estimation: breslow
+number of observations: 43
+number of events observed: 38
+time fit was run: 2024-05-20 14:41:38 UTC
+
+== cph.summary ==
+                    coef  exp(coef)  se(coef)  coef lower 95%  coef upper 95%  exp(coef) lower 95%  exp(coef) upper 95%  cmp to         z         p  -log2(p)
+covariate                                                                                                                                                    
+ctDNA level    -0.012625   0.987455  0.015806       -0.043604        0.018355             0.957333             1.018525     0.0 -0.798703  0.424462  1.236291
+Metagene       -0.723914   0.484851  0.647249       -1.992498        0.544671             0.136354             1.724042     0.0 -1.118447  0.263376  1.924803
+tumor_fraction  1.264310   3.540649  2.473902       -3.584448        6.113068             0.027752           451.722561     0.0  0.511059  0.609310  0.714752
+
+== Additional Metrics ==
+Concordance: 0.6150178784266984
+Partial AIC: 223.1209658897225
+log-likelihood ratio test: 5.156772131964516
+negative log2(p) of ll-ratio test: 2.637819150120229

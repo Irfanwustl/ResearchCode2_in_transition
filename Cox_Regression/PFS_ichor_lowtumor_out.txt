@@ -1,0 +1,27 @@
+== model_info ==
+model: <class 'lifelines.fitters.coxph_fitter.CoxPHFitter'>
+duration col: PSA_progression (months)
+event col: PSA event (1= Progression)
+baseline estimation: breslow
+number of observations: 40
+number of events observed: 35
+time fit was run: 2024-05-20 14:16:17 UTC
+
+== cph.summary ==
+                                           coef   exp(coef)  se(coef)  coef lower 95%  coef upper 95%  exp(coef) lower 95%  exp(coef) upper 95%  cmp to         z         p  -log2(p)
+covariate                                                                                                                                                                            
+Age                                   -0.034020    0.966552  0.021601       -0.076357        0.008317             0.926485             1.008352     0.0 -1.574922  0.115274  3.116856
+Baseline PSA                          -0.011024    0.989036  0.008746       -0.028166        0.006117             0.972227             1.006136     0.0 -1.260501  0.207489  2.268896
+Metagene                              -0.125631    0.881941  0.805322       -1.704032        1.452771             0.181948             4.274943     0.0 -0.156000  0.876033  0.190943
+Gleason total                         -0.331443    0.717887  0.229002       -0.780279        0.117393             0.458278             1.124561     0.0 -1.447337  0.147803  2.758257
+Line of Therapy in Metastatic Setting  0.311965    1.366107  0.134643        0.048070        0.575861             1.049244             1.778661     0.0  2.316982  0.020505  5.607899
+ctDNA level                           -0.020549    0.979660  0.021508       -0.062704        0.021605             0.939222             1.021840     0.0 -0.955436  0.339357  1.559124
+tumor_fraction                         6.155275  471.196240  3.125257        0.029884       12.280666             1.030335        215489.118559     0.0  1.969526  0.048893  4.354236
+Metastatic Disease Burden              1.405205    4.076361  0.529051        0.368285        2.442125             1.445254            11.497443     0.0  2.656088  0.007905  6.982965
+Race_Caucasian                        -0.022745    0.977512  0.500225       -1.003169        0.957679             0.366716             2.605642     0.0 -0.045469  0.963733  0.053294
+
+== Additional Metrics ==
+Concordance: 0.7402234636871509
+Partial AIC: 194.33789572525782
+log-likelihood ratio test: 23.514958695066724
+negative log2(p) of ll-ratio test: 7.604648531122553

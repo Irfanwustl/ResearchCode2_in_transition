@@ -1,0 +1,19 @@
+== model_info ==
+model: <class 'lifelines.fitters.coxph_fitter.CoxPHFitter'>
+duration col: PSA_progression (months)
+event col: PSA event (1= Progression)
+baseline estimation: breslow
+number of observations: 42
+number of events observed: 37
+time fit was run: 2024-05-20 16:46:56 UTC
+
+== cph.summary ==
+                               coef  exp(coef)  se(coef)  coef lower 95%  coef upper 95%  exp(coef) lower 95%  exp(coef) upper 95%  cmp to         z        p  -log2(p)
+covariate                                                                                                                                                              
+Metastatic Disease Burden  0.898215   2.455217  0.363799        0.185182        1.611249             1.203437             5.009063     0.0  2.468986  0.01355    6.2056
+
+== Additional Metrics ==
+Concordance: 0.6016311166875784
+Partial AIC: 210.93436051188925
+log-likelihood ratio test: 5.8209772784106235
+negative log2(p) of ll-ratio test: 5.980635127944971

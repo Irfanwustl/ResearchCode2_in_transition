@@ -1,0 +1,27 @@
+== model_info ==
+model: <class 'lifelines.fitters.coxph_fitter.CoxPHFitter'>
+duration col: PSA_progression (months)
+event col: PSA event (1= Progression)
+baseline estimation: breslow
+number of observations: 19
+number of events observed: 15
+time fit was run: 2024-05-20 18:48:32 UTC
+
+== cph.summary ==
+                                                    coef    exp(coef)  se(coef)  coef lower 95%  coef upper 95%  exp(coef) lower 95%  exp(coef) upper 95%  cmp to         z         p  -log2(p)
+covariate                                                                                                                                                                                      
+Age                                            -0.098673     0.906039  0.075701       -0.247045        0.049698         7.811057e-01         1.050954e+00     0.0 -1.303456  0.192419  2.377676
+Baseline PSA                                   -0.176788     0.837957  0.111252       -0.394839        0.041263         6.737886e-01         1.042126e+00     0.0 -1.589072  0.112044  3.157860
+Metagene                                        1.659391     5.256109  5.072065       -8.281674       11.600455         2.531132e-04         1.091475e+05     0.0  0.327163  0.743545  0.427509
+Gleason total                                   2.145219     8.543911  0.872531        0.435090        3.855347         1.545102e+00         4.724503e+01     0.0  2.458617  0.013947  6.163868
+Line of Therapy in Metastatic Setting           0.469194     1.598705  0.333358       -0.184175        1.122563         8.317901e-01         3.072720e+00     0.0  1.407479  0.159285  2.650314
+ctDNA level                                    -4.135003     0.016003  1.770486       -7.605091       -0.664915         4.979102e-04         5.143172e-01     0.0 -2.335519  0.019516  5.679176
+Metastatic Disease Burden                       5.688769   295.529746  1.962546        1.842250        9.535289         6.310719e+00         1.383960e+04     0.0  2.898668  0.003748  8.059849
+Race_Caucasian                                -10.447822     0.000029  3.776330      -17.849293       -3.046350         1.770723e-08         4.753208e-02     0.0 -2.766660  0.005663  7.464121
+AR/enhancer alterations detected in cfDNA_Yes   8.582908  5339.612684  3.156311        2.396652       14.769165         1.098634e+01         2.595175e+06     0.0  2.719285  0.006542  7.255980
+
+== Additional Metrics ==
+Concordance: 0.9020979020979021
+Partial AIC: 54.205985930356235
+log-likelihood ratio test: 29.429596847702456
+negative log2(p) of ll-ratio test: 10.832791351733706

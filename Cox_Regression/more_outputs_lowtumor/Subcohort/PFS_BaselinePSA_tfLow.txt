@@ -1,0 +1,19 @@
+== model_info ==
+model: <class 'lifelines.fitters.coxph_fitter.CoxPHFitter'>
+duration col: PSA_progression (months)
+event col: PSA event (1= Progression)
+baseline estimation: breslow
+number of observations: 21
+number of events observed: 17
+time fit was run: 2024-05-20 18:29:13 UTC
+
+== cph.summary ==
+                  coef  exp(coef)  se(coef)  coef lower 95%  coef upper 95%  exp(coef) lower 95%  exp(coef) upper 95%  cmp to         z         p  -log2(p)
+covariate                                                                                                                                                  
+Baseline PSA  0.021137   1.021362  0.010561        0.000438        0.041836             1.000438             1.042724     0.0  2.001452  0.045344  4.462954
+
+== Additional Metrics ==
+Concordance: 0.5851648351648352
+Partial AIC: 76.76538002532685
+log-likelihood ratio test: 2.950712175286668
+negative log2(p) of ll-ratio test: 3.542210774508504

@@ -1,0 +1,26 @@
+== model_info ==
+model: <class 'lifelines.fitters.coxph_fitter.CoxPHFitter'>
+duration col: PSA_progression (months)
+event col: PSA event (1= Progression)
+baseline estimation: breslow
+number of observations: 40
+number of events observed: 35
+time fit was run: 2024-05-20 14:39:14 UTC
+
+== cph.summary ==
+                                           coef  exp(coef)  se(coef)  coef lower 95%  coef upper 95%  exp(coef) lower 95%  exp(coef) upper 95%  cmp to         z         p  -log2(p)
+covariate                                                                                                                                                                           
+Age                                   -0.008863   0.991177  0.023210       -0.054353        0.036628             0.947097             1.037307     0.0 -0.381845  0.702576  0.509273
+Baseline PSA                          -0.002950   0.997055  0.007109       -0.016884        0.010984             0.983258             1.011045     0.0 -0.414909  0.678208  0.560199
+Metagene                               0.439164   1.551409  1.000458       -1.521698        2.400025             0.218341            11.023455     0.0  0.438963  0.660689  0.597958
+Gleason total                         -0.049861   0.951362  0.206122       -0.453852        0.354130             0.635177             1.424940     0.0 -0.241901  0.808857  0.306044
+Line of Therapy in Metastatic Setting  0.333146   1.395351  0.138884        0.060939        0.605353             1.062834             1.831898     0.0  2.398739  0.016452  5.925627
+tumor_fraction                         4.420124  83.106616  3.196943       -1.845768       10.686017             0.157904         43739.948338     0.0  1.382610  0.166785  2.583942
+Metastatic Disease Burden              0.636213   1.889312  0.505889       -0.355312        1.627738             0.700955             5.092342     0.0  1.257613  0.208532  2.261661
+Race_Caucasian                         0.277744   1.320148  0.506430       -0.714840        1.270328             0.489270             3.562021     0.0  0.548436  0.583393  0.777460
+
+== Additional Metrics ==
+Concordance: 0.7639664804469274
+Partial AIC: 195.32072572669475
+log-likelihood ratio test: 20.5321286936298
+negative log2(p) of ll-ratio test: 6.878354574125473
