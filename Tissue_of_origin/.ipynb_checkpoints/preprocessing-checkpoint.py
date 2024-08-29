@@ -2,6 +2,82 @@ from sklearn.model_selection import train_test_split
 from imblearn.under_sampling import RandomUnderSampler
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
+
+
+def combine_feature_dfs_with_target(dfs_with_prefixes, target_column='target'):
+    """
+    Combine multiple DataFrames with a common target column, ensuring indices and target values match.
+    Adds a prefix to each feature set for identification.
+
+    Parameters:
+    dfs_with_prefixes : list of tuples
+        A list of tuples where each tuple contains a DataFrame and its corresponding prefix.
+        Example: [(df1, 'CNA_'), (df2, 'Ratio_'), (df3, 'EndMotif_')]
+    target_column : str, optional (default='target')
+        Name of the target column that is common across all DataFrames.
+
+    Returns:
+    combined_df : DataFrame
+        A single DataFrame with all features combined, prefixed, and the target column appended.
+    """
+    # Ensure there is at least one DataFrame
+    if not dfs_with_prefixes:
+        raise ValueError("At least one DataFrame must be provided.")
+
+    combined_features = pd.DataFrame()
+
+    for df, prefix in dfs_with_prefixes:
+        # Check that all DataFrames have the same index
+        if not dfs_with_prefixes[0][0].index.equals(df.index):
+            raise ValueError("Indices do not match across the DataFrames.")
+
+        # Check that all DataFrames have the same target column values
+        if not dfs_with_prefixes[0][0][target_column].equals(df[target_column]):
+            raise ValueError(f"Target columns do not match across the DataFrames.")
+
+        # Drop the target column and add prefix to the feature columns
+        df_prefixed = df.drop(columns=[target_column]).add_prefix(prefix)
+
+        # Concatenate to the combined DataFrame
+        combined_features = pd.concat([combined_features, df_prefixed], axis=1)
+
+    # Reattach the target column and preserve the index
+    combined_features[target_column] = dfs_with_prefixes[0][0][target_column]
+    combined_features.index = dfs_with_prefixes[0][0].index
+
+    return combined_features
+
+def standardize_dataframe(df, target_column='target'):
+    """
+    Standardizes the features of a DataFrame, excluding the target column.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame with features and target.
+    target_column (str): The name of the target column to be excluded from standardization.
+                         Default is 'target'.
+
+    Returns:
+    pd.DataFrame: A DataFrame with standardized features and the original target column.
+    """
+    # Separate the features and target
+    features = df.drop(columns=[target_column])
+    target = df[target_column]
+
+    # Initialize the StandardScaler
+    scaler = StandardScaler()
+
+    # Fit and transform the features
+    scaled_features = scaler.fit_transform(features)
+
+    # Convert the scaled features back to a DataFrame, keeping the original index
+    scaled_df = pd.DataFrame(scaled_features, columns=features.columns, index=df.index)
+
+    # Add the target column back to the DataFrame
+    scaled_df[target_column] = target
+
+    return scaled_df
 
 
 
@@ -151,3 +227,48 @@ def normalize_features_by_sample(df, target_column='target'):
     normalized_df[target_column] = target
     
     return normalized_df
+
+
+def check_scaling(df, target_column='target'):
+    """
+    Checks the mean and standard deviation of each feature in the DataFrame,
+    excluding the target column.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame with features and target.
+    target_column (str): The name of the target column to be excluded from the checks.
+                         Default is 'target'.
+
+    Returns:
+    pd.Series: A Series of means for each feature.
+    pd.Series: A Series of standard deviations for each feature.
+    """
+    # Drop the target column to get only features
+    features_df = df.drop(columns=[target_column])
+    
+    # Calculate the mean and standard deviation of each feature
+    means = features_df.mean()
+    stds = features_df.std()
+
+    # Print the results
+    print("Means:\n", means)
+    print("Standard Deviations:\n", stds)
+
+    return means, stds
+
+
+# Function to manually filter columns based on a prefix
+def filter_columns_by_prefix(df, prefix):
+    def column_matches(col):
+        if isinstance(col, tuple):
+            return col[0].startswith(prefix)
+        elif isinstance(col, str):
+            return col.startswith(prefix)
+        return False
+
+    # Apply the filtering logic
+    return df[[col for col in df.columns if column_matches(col) or col == 'target']]
+
+
+
+
