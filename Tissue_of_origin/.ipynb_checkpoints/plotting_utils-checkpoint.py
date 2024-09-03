@@ -16,8 +16,12 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes):
     else:
         # Multiclass case
         y_test_bin = label_binarize(y_test, classes=classes)
-        average_auc = 0
         
+        # Initialize AUCs
+        average_auc = 0
+        macro_auc = roc_auc_score(y_test_bin, y_pred_proba, average='macro')
+        micro_auc = roc_auc_score(y_test_bin, y_pred_proba, average='micro')
+
         # Compute class-wise AUC and update the average AUC
         for i, class_label in enumerate(classes):
             fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_pred_proba[:, i])
@@ -25,9 +29,13 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes):
             average_auc += roc_auc
         
         average_auc /= len(classes)  # Calculate the average AUC
-        
+
         # Initialize the legend text
-        legend_text = f'Average AUC: {average_auc:.2f}\n'
+        legend_text = (
+            f'Macro AUC: {macro_auc:.2f}\n'
+            f'Micro AUC: {micro_auc:.2f}\n'
+            f'Average AUC: {average_auc:.2f}\n'
+        )
 
         # Compute and add sample counts to the legend
         class_counts_train = y_train.value_counts()
@@ -102,7 +110,7 @@ def plot_classification_results(model, X_test, y_test, y_train, target_name):
     plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes)
     
     # Plot Precision-Recall curve
-    plot_precision_recall_curve(y_test, y_pred_proba, y_train, target_name, classes)
+    #plot_precision_recall_curve(y_test, y_pred_proba, y_train, target_name, classes)
     
     # Plot Confusion Matrix
     plot_confusion_matrix(y_test, y_pred, target_name, classes)

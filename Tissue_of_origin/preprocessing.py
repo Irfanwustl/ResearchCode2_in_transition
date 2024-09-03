@@ -47,6 +47,9 @@ def combine_feature_dfs_with_target(dfs_with_prefixes, target_column='target'):
     combined_features[target_column] = dfs_with_prefixes[0][0][target_column]
     combined_features.index = dfs_with_prefixes[0][0].index
 
+    # Convert all column names to strings, replacing tuples with hyphen-separated strings
+    combined_features.columns = ['-'.join(col) if isinstance(col, tuple) else col for col in combined_features.columns]
+
     return combined_features
 
 def standardize_dataframe(df, target_column='target'):
@@ -87,6 +90,8 @@ def preprocess_dataframe(df):
     
     # Extract target labels from the sample names (which are now in the index)
     df_transposed['target'] = df_transposed.index.map(get_label)
+
+
     
     return df_transposed
 
@@ -269,6 +274,63 @@ def filter_columns_by_prefix(df, prefix):
     # Apply the filtering logic
     return df[[col for col in df.columns if column_matches(col) or col == 'target']]
 
+
+def extract_feature_importances(model, df, target_name='target'):
+    """
+    Extracts and returns the feature importances from a trained model.
+
+    Parameters:
+    - model: The trained model (must have feature_importances_ attribute).
+    - df: DataFrame containing the data (excluding the target column).
+    - target_name: Name of the target column in df.
+
+    Returns:
+    - A DataFrame sorted by feature importance.
+    """
+    # Check if the model has feature_importances_ attribute
+    if hasattr(model, 'feature_importances_'):
+        feature_importances = model.feature_importances_
+    else:
+        raise ValueError("The provided model does not have the 'feature_importances_' attribute.")
+
+    # Create a DataFrame for feature importances
+    importances_df = pd.DataFrame({
+        'Feature': df.drop(columns=[target_name]).columns,
+        'Importance': feature_importances
+    }).sort_values(by='Importance', ascending=False)
+    
+    return importances_df
+
+
+def subset_top_k_features(train_df, test_df, k, feature_importances_dict, target_name='target'):
+    """
+    Subsets the train and test DataFrames with the top k features from each feature importance DataFrame.
+    
+    Parameters:
+    - train_df: DataFrame containing the training data.
+    - test_df: DataFrame containing the testing data.
+    - k: The number of top features to select from each feature importance DataFrame.
+    - feature_importances_dict: Dictionary with feature importance DataFrames. Keys should correspond to feature group names.
+    - target_name: Name of the target column.
+    
+    Returns:
+    - Subsetted train_df and test_df containing only the top k features from each feature group.
+    """
+    selected_features = set()
+
+    # Iterate over each feature importance DataFrame and select top k features
+    for feature_group, importance_df in feature_importances_dict.items():
+        top_k_features = importance_df['Feature'].head(k)
+        selected_features.update(top_k_features)
+
+    # Convert the set to a list
+    selected_features = list(selected_features)
+
+    # Subset the train and test DataFrames
+    train_subset = train_df[selected_features + [target_name]]
+    test_subset = test_df[selected_features + [target_name]]
+
+    return train_subset, test_subset
 
 
 
