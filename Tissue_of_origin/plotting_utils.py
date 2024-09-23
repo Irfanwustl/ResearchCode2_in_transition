@@ -94,11 +94,21 @@ def plot_precision_recall_curve(y_test, y_pred_proba, y_train, target_name, clas
     plt.show()
 
 def plot_confusion_matrix(y_test, y_pred, target_name, classes):
-    plt.figure(figsize=(8, 6))
+    fig, ax = plt.subplots(1, 2, figsize=(16, 6))  # Create a side-by-side plot
+
+    # Plot non-normalized confusion matrix
     cm = confusion_matrix(y_test, y_pred)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=classes)
-    disp.plot(cmap=plt.cm.Blues, values_format='d')
-    plt.title(f'Confusion Matrix for {target_name}')
+    disp.plot(cmap=plt.cm.Blues, values_format='d', ax=ax[0])
+    ax[0].set_title(f'Confusion Matrix for {target_name}')
+    
+    # Plot normalized confusion matrix
+    cm_normalized = confusion_matrix(y_test, y_pred, normalize='true')
+    disp_normalized = ConfusionMatrixDisplay(confusion_matrix=cm_normalized, display_labels=classes)
+    disp_normalized.plot(cmap=plt.cm.Blues, values_format='.2f', ax=ax[1])
+    ax[1].set_title(f'Normalized Confusion Matrix for {target_name}')
+
+    plt.tight_layout()
     plt.show()
 
 def plot_classification_results(model, X_test, y_test, y_train, target_name):
