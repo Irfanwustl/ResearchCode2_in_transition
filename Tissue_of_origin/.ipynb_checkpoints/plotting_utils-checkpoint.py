@@ -111,9 +111,8 @@ def plot_confusion_matrix(y_test, y_pred, target_name, classes):
     plt.tight_layout()
     plt.show()
 
-def plot_classification_results(model, X_test, y_test, y_train, target_name):
-    y_pred = model.predict(X_test)
-    y_pred_proba = model.predict_proba(X_test)
+def plot_classification_results(model, y_pred, y_pred_proba, y_test,y_train, target_name):
+
     
     # Get class labels from the model
     classes = model.classes_

@@ -9,29 +9,14 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 from xgboost import XGBClassifier
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-from sklearn.metrics import make_scorer, roc_auc_score
-
-
+from sklearn.model_selection import cross_val_predict, StratifiedKFold, GridSearchCV, RandomizedSearchCV
+from sklearn.metrics import roc_curve, make_scorer, roc_auc_score, accuracy_score
+from sklearn.metrics import f1_score
 
 
 def train_model(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None):
     """
-    Trains a model with optional hyperparameter tuning using cross-validation.
-    
-    Parameters:
-    - train_df: DataFrame containing the training data.
-    - test_df: DataFrame containing the testing data.
-    - target_name: Name of the target column.
-    - model: The model to train. If None, RandomForestClassifier is used.
-    - param_grid: Dictionary containing the hyperparameters to tune.
-    - cv: Number of cross-validation folds.
-    - search_method: 'grid' for GridSearchCV, 'random' for RandomizedSearchCV.
-    - scoring: Scoring metric to use for evaluation. Default is None.
-              Options: 'roc_auc_macro', 'roc_auc_micro', 'balanced_accuracy', or other sklearn metrics.
-    
-    Returns:
-    - The best model found by the search (if tuning is applied) or the fitted model.
+    Trains a model with optional hyperparameter tuning using stratified cross-validation and finds the best decision threshold for each class.
     """
     # If no model is provided, use RandomForestClassifier as the default
     if model is None:
@@ -44,6 +29,9 @@ def train_model(train_df, test_df, target_name='target', model=None, param_grid=
     X_test = test_df.drop(columns=[target_name])
     y_test = test_df[target_name]
 
+    # Extract the class labels from y_train
+    classes = np.unique(y_train)  # Automatically deduce class names from y_train
+
     # Configure the scoring metric based on user input
     if scoring == 'roc_auc_macro':
         scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='macro')
@@ -55,25 +43,51 @@ def train_model(train_df, test_df, target_name='target', model=None, param_grid=
         # Default to accuracy if no or unrecognized scoring is provided
         scoring_metric = scoring or 'accuracy'
 
+    # Set up stratified cross-validation
+    stratified_cv = StratifiedKFold(n_splits=cv)
+
     # If hyperparameter tuning is requested
     if param_grid is not None:
         if search_method == 'grid':
-            search = GridSearchCV(model, param_grid, cv=cv, scoring=scoring_metric, n_jobs=-1)
+            search = GridSearchCV(model, param_grid, cv=stratified_cv, scoring=scoring_metric, n_jobs=-1)
         elif search_method == 'random':
-            search = RandomizedSearchCV(model, param_grid, cv=cv, scoring=scoring_metric, n_jobs=-1, random_state=0)
+            search = RandomizedSearchCV(model, param_grid, cv=stratified_cv, scoring=scoring_metric, n_jobs=-1, random_state=0)
         
         # Perform the search and find the best model
         search.fit(X_train, y_train)
         model = search.best_estimator_
         print(f"Best hyperparameters found: {search.best_params_}")
     else:
-        # Fit the provided model without tuning
+        # Fit the model without tuning
         model.fit(X_train, y_train)
-    
-    # Plot classification results
-    plot_classification_results(model, X_test, y_test, y_train, target_name)
-    
+
+    # Use stratified cross-validation to predict probabilities on the training data
+    y_proba_cv = cross_val_predict(model, X_train, y_train, cv=stratified_cv, method='predict_proba')
+
+    # Find best thresholds using cross-validation probabilities
+    #best_thresholds = find_best_thresholds_cv(y_proba_cv, y_train, num_classes=len(classes))
+
+    # Train final model on all training data
+    model.fit(X_train, y_train)
+
+    # Predict on test data
+    y_proba_test = model.predict_proba(X_test)
+
+    y_pred = model.predict(X_test)
+
+   
+
+  
+
+    # Plot classification results with the converted labels
+    plot_classification_results(model, y_pred, y_proba_test, y_test, y_train, target_name)
+
     return model
+
+
+
+
+
 
 
 
@@ -116,8 +130,17 @@ def train_meta_classifier(base_models, train_dfs, test_dfs, target_name='target'
     # Step 2: Train the Meta-Classifier
     meta_classifier.fit(X_meta_train, y_meta_train)
     
-    # Plot classification results
-    plot_classification_results(meta_classifier, X_meta_test, y_meta_test, y_meta_train, target_name)
+    # Predict on test data
+    y_proba_test = meta_classifier.predict_proba(X_meta_test)
+
+    y_pred = meta_classifier.predict(X_meta_test)
+
+   
+
+  
+
+    # Plot classification results with the converted labels
+    plot_classification_results(model, y_pred, y_proba_test, y_meta_test, y_meta_train, target_name)
     
     return meta_classifier
 
