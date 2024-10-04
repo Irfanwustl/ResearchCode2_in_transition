@@ -12,7 +12,8 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import cross_val_predict, StratifiedKFold, GridSearchCV, RandomizedSearchCV
 from sklearn.metrics import roc_curve, make_scorer, roc_auc_score, accuracy_score
 from sklearn.metrics import f1_score
-
+from sklearn.model_selection import cross_val_score
+from sklearn.ensemble import VotingClassifier
 
 def train_model(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None):
     """
@@ -65,24 +66,26 @@ def train_model(train_df, test_df, target_name='target', model=None, param_grid=
     y_proba_cv = cross_val_predict(model, X_train, y_train, cv=stratified_cv, method='predict_proba')
 
     # Find best thresholds using cross-validation probabilities
-    #best_thresholds = find_best_thresholds_cv(y_proba_cv, y_train, num_classes=len(classes))
+    # best_thresholds = find_best_thresholds_cv(y_proba_cv, y_train, num_classes=len(classes))
+
+    # Compute cross-validated accuracy
+    cv_scores = cross_val_score(model, X_train, y_train, cv=stratified_cv, scoring='accuracy')
+    cv_accuracy = cv_scores.mean()
+    print(f"Cross-validated Accuracy: {cv_accuracy:.4f}")
 
     # Train final model on all training data
     model.fit(X_train, y_train)
 
     # Predict on test data
     y_proba_test = model.predict_proba(X_test)
-
     y_pred = model.predict(X_test)
-
-   
-
-  
 
     # Plot classification results with the converted labels
     plot_classification_results(model, y_pred, y_proba_test, y_test, y_train, target_name)
 
     return model
+
+
 
 
 
