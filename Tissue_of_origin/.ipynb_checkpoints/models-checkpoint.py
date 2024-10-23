@@ -15,7 +15,7 @@ from sklearn.metrics import f1_score
 from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import VotingClassifier
 
-def train_model(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None):
+def train_model(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None, save_auc=None):
     """
     Trains a model with optional hyperparameter tuning using stratified cross-validation and finds the best decision threshold for each class.
     """
@@ -81,7 +81,7 @@ def train_model(train_df, test_df, target_name='target', model=None, param_grid=
     y_pred = model.predict(X_test)
 
     # Plot classification results with the converted labels
-    plot_classification_results(model, y_pred, y_proba_test, y_test, y_train, target_name)
+    plot_classification_results(model, y_pred, y_proba_test, y_test, y_train, target_name,save_folder=save_auc)
 
     return model
 

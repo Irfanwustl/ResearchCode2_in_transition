@@ -6,15 +6,30 @@ from sklearn.preprocessing import label_binarize
 
 
 
+import os
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_curve, roc_auc_score
+from sklearn.preprocessing import label_binarize
 
-def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes):
+def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes, save_folder=None):
     plt.figure(figsize=(12, 10))
     
+    if save_folder and not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+
     if len(y_train.unique()) == 2:
         # Binary classification case
         fpr, tpr, _ = roc_curve(y_test, y_pred_proba[:, 1])
         roc_auc = roc_auc_score(y_test, y_pred_proba[:, 1])
         plt.plot(fpr, tpr, label=f'{target_name} ROC curve (AUC = {roc_auc:.2f})')
+
+        # Save data to file
+        if save_folder:
+            file_path = os.path.join(save_folder, f"{target_name}.tsv")
+            with open(file_path, 'w') as file:
+                file.write("FPR\tTPR\tAUC\n")
+                for fp, tp in zip(fpr, tpr):
+                    file.write(f"{fp:.6f}\t{tp:.6f}\t{roc_auc:.6f}\n")
     else:
         # Multiclass case
         y_test_bin = label_binarize(y_test, classes=classes)
@@ -29,6 +44,14 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes):
             fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_pred_proba[:, i])
             roc_auc = roc_auc_score(y_test_bin[:, i], y_pred_proba[:, i])
             average_auc += roc_auc
+
+            # Save data to separate files for each class
+            if save_folder:
+                file_path = os.path.join(save_folder, f"{class_label}.tsv")
+                with open(file_path, 'w') as file:
+                    file.write("FPR\tTPR\tAUC\n")
+                    for fp, tp in zip(fpr, tpr):
+                        file.write(f"{fp:.6f}\t{tp:.6f}\t{roc_auc:.6f}\n")
         
         average_auc /= len(classes)  # Calculate the average AUC
 
@@ -51,6 +74,7 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes):
 
         plt.plot([], [], ' ', label=legend_text)  # Add the text to the legend
 
+        # Plot ROC curve for each class
         for i, class_label in enumerate(classes):
             fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_pred_proba[:, i])
             roc_auc = roc_auc_score(y_test_bin[:, i], y_pred_proba[:, i])
@@ -64,6 +88,7 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes):
     plt.title(f'Receiver Operating Characteristic (ROC) Curve for {target_name}')
     plt.legend(loc='lower right')
     plt.show()
+
 
 def plot_precision_recall_curve(y_test, y_pred_proba, y_train, target_name, classes):
     plt.figure(figsize=(12, 10))
@@ -111,14 +136,14 @@ def plot_confusion_matrix(y_test, y_pred, target_name, classes):
     plt.tight_layout()
     plt.show()
 
-def plot_classification_results(model, y_pred, y_pred_proba, y_test,y_train, target_name):
+def plot_classification_results(model, y_pred, y_pred_proba, y_test,y_train, target_name, save_folder=None):
 
     
     # Get class labels from the model
     classes = model.classes_
     
     # Plot ROC curve
-    plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes)
+    plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes,save_folder=save_folder)
     
     # Plot Precision-Recall curve
     #plot_precision_recall_curve(y_test, y_pred_proba, y_train, target_name, classes)
