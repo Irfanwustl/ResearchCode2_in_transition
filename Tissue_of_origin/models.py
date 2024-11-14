@@ -20,6 +20,116 @@ from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import accuracy_score, make_scorer, roc_auc_score
 
 
+import numpy as np
+from sklearn.model_selection import StratifiedKFold, GridSearchCV, RandomizedSearchCV
+from sklearn.metrics import accuracy_score, make_scorer, roc_auc_score
+from sklearn.ensemble import RandomForestClassifier
+import pandas as pd
+
+def train_model_nested_cv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None, outer_cv_folds=5, inner_cv_folds=3):
+    """
+    Trains a model using Nested Cross-Validation, plots the ROC curve, and confusion matrix.
+
+    Parameters:
+        dataset (DataFrame): Combined dataset with features and target column.
+        target_name (str): The name of the target column.
+        model (object): Machine learning model to train. Defaults to RandomForestClassifier.
+        param_grid (dict): Hyperparameter grid for tuning. If None, no tuning is performed.
+        search_method (str): Method for hyperparameter search ('grid' or 'random').
+        scoring (str): Metric for model evaluation (e.g., 'roc_auc_macro', 'accuracy').
+        save_folder (str): Folder to save ROC data files. If None, files are not saved.
+        outer_cv_folds (int): Number of folds for the outer cross-validation.
+        inner_cv_folds (int): Number of folds for the inner cross-validation.
+
+    Returns:
+        model (object): The trained model.
+        nested_cv_accuracy (float): The average accuracy from Nested Cross-Validation.
+    """
+
+    # If no model is provided, use RandomForestClassifier as the default
+    if model is None:
+        model = RandomForestClassifier(random_state=0, class_weight='balanced')
+
+    # Splitting dataset into features and target
+    X = dataset.drop(columns=[target_name])
+    y = dataset[target_name]
+
+    # Extract the class labels from y
+    classes = np.unique(y)  # Automatically deduce class names from y
+
+    # Configure the scoring metric based on user input
+    if scoring == 'roc_auc_macro':
+        scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='macro')
+    elif scoring == 'roc_auc_micro':
+        scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='micro')
+    elif scoring == 'balanced_accuracy':
+        scoring_metric = 'balanced_accuracy'
+    else:
+        # Default to accuracy if no or unrecognized scoring is provided
+        scoring_metric = scoring or 'accuracy'
+
+    # Set up outer cross-validation
+    outer_cv = StratifiedKFold(n_splits=outer_cv_folds, shuffle=True, random_state=0)
+
+    nested_accuracies = []
+    predictions = []
+    probabilities = []
+    true_labels = []
+
+    # Outer loop for performance evaluation
+    for train_index, test_index in outer_cv.split(X, y):
+        # Split data into training and testing folds for outer CV
+        X_train_outer, X_test_outer = X.iloc[train_index], X.iloc[test_index]
+        y_train_outer, y_test_outer = y.iloc[train_index], y.iloc[test_index]
+
+        # If hyperparameter tuning is requested
+        if param_grid is not None:
+            # Set up inner cross-validation for hyperparameter tuning
+            inner_cv = StratifiedKFold(n_splits=inner_cv_folds, shuffle=True, random_state=0)
+
+            if search_method == 'grid':
+                search = GridSearchCV(model, param_grid, cv=inner_cv, scoring=scoring_metric, n_jobs=-1)
+            elif search_method == 'random':
+                search = RandomizedSearchCV(model, param_grid, cv=inner_cv, scoring=scoring_metric, n_jobs=-1, random_state=0)
+
+            # Perform the search on the training folds
+            search.fit(X_train_outer, y_train_outer)
+            model = search.best_estimator_
+            print(f"Best hyperparameters found for this fold: {search.best_params_}")
+
+        # Train the model on the training data of the outer fold
+        model.fit(X_train_outer, y_train_outer)
+
+        # Predict on the test fold
+        y_pred = model.predict(X_test_outer)
+        y_proba = model.predict_proba(X_test_outer)
+
+        predictions.extend(y_pred)
+        probabilities.extend(y_proba)
+        true_labels.extend(y_test_outer)
+
+        # Evaluate accuracy for this fold
+        fold_accuracy = accuracy_score(y_test_outer, y_pred)
+        nested_accuracies.append(fold_accuracy)
+
+    # Convert lists to numpy arrays
+    probabilities = np.array(probabilities)
+    true_labels = np.array(true_labels)
+
+    # Calculate average nested CV accuracy
+    nested_cv_accuracy = np.mean(nested_accuracies)
+    print(f"Nested CV Accuracy: {nested_cv_accuracy:.4f}")
+
+    # Train final model on the entire dataset
+    model.fit(X, y)
+
+    # Plot ROC Curve using existing function
+    plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
+
+    # Plot Confusion Matrix using existing function
+    plot_confusion_matrix(true_labels, predictions, target_name, classes)
+
+    return model, nested_cv_accuracy
 
 
 
