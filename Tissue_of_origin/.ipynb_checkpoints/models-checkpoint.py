@@ -1,4 +1,4 @@
-from plotting_utils import plot_classification_results
+from plotting_utils import plot_classification_results, plot_roc_curve, plot_confusion_matrix
 from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, ConfusionMatrixDisplay
@@ -14,6 +14,126 @@ from sklearn.metrics import roc_curve, make_scorer, roc_auc_score, accuracy_scor
 from sklearn.metrics import f1_score
 from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import VotingClassifier
+
+
+from sklearn.model_selection import LeaveOneOut
+from sklearn.metrics import accuracy_score, make_scorer, roc_auc_score
+
+
+
+
+
+
+def combine_train_test(train_df, test_df):
+    """
+    Combines train and test datasets into a single dataset for unified processing.
+
+    Parameters:
+        train_df (DataFrame): Training data with features and target column.
+        test_df (DataFrame): Test data with features and target column.
+
+    Returns:
+        combined_df (DataFrame): The combined dataset with train and test data.
+    """
+    combined_df = pd.concat([train_df, test_df], ignore_index=True)
+    return combined_df
+
+def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None):
+    """
+    Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, plots the ROC curve, and confusion matrix.
+
+    Parameters:
+        dataset (DataFrame): Combined dataset with features and target column.
+        target_name (str): The name of the target column.
+        model (object): Machine learning model to train. Defaults to RandomForestClassifier.
+        param_grid (dict): Hyperparameter grid for tuning. If None, no tuning is performed.
+        search_method (str): Method for hyperparameter search ('grid' or 'random').
+        scoring (str): Metric for model evaluation (e.g., 'roc_auc_macro', 'accuracy').
+        save_folder (str): Folder to save ROC data files. If None, files are not saved.
+
+    Returns:
+        model (object): The trained model.
+        loocv_accuracy (float): The accuracy from LOOCV.
+    """
+
+    # If no model is provided, use RandomForestClassifier as the default
+    if model is None:
+        model = RandomForestClassifier(random_state=0, class_weight='balanced')
+
+    # Splitting dataset into features and target
+    X = dataset.drop(columns=[target_name])
+    y = dataset[target_name]
+
+    # Extract the class labels from y
+    classes = np.unique(y)  # Automatically deduce class names from y
+
+    # Configure the scoring metric based on user input
+    if scoring == 'roc_auc_macro':
+        scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='macro')
+    elif scoring == 'roc_auc_micro':
+        scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='micro')
+    elif scoring == 'balanced_accuracy':
+        scoring_metric = 'balanced_accuracy'
+    else:
+        # Default to accuracy if no or unrecognized scoring is provided
+        scoring_metric = scoring or 'accuracy'
+
+    # Set up Leave-One-Out Cross-Validation
+    loo = LeaveOneOut()
+
+    # If hyperparameter tuning is requested
+    if param_grid is not None:
+        if search_method == 'grid':
+            search = GridSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1)
+        elif search_method == 'random':
+            search = RandomizedSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1, random_state=0)
+
+        # Perform the search and find the best model
+        search.fit(X, y)
+        model = search.best_estimator_
+        print(f"Best hyperparameters found: {search.best_params_}")
+    
+    # Perform LOOCV
+    predictions = []
+    probabilities = []
+    true_labels = []
+
+    for train_index, test_index in loo.split(X):
+        # Split data into training and testing folds for LOOCV
+        X_train_fold, X_test_fold = X.iloc[train_index], X.iloc[test_index]
+        y_train_fold, y_test_fold = y.iloc[train_index], y.iloc[test_index]
+
+        # Train the model on the training fold
+        model.fit(X_train_fold, y_train_fold)
+
+        # Predict on the test fold
+        y_pred = model.predict(X_test_fold)
+        y_proba = model.predict_proba(X_test_fold)
+
+        predictions.append(y_pred[0])  # Append the predicted label
+        probabilities.append(y_proba[0])  # Append the predicted probabilities
+        true_labels.append(y_test_fold.iloc[0])  # Append the true label
+
+    # Convert lists to numpy arrays
+    probabilities = np.array(probabilities)
+    true_labels = np.array(true_labels)
+
+    # Calculate LOOCV accuracy
+    loocv_accuracy = accuracy_score(true_labels, predictions)
+    print(f"LOOCV Accuracy: {loocv_accuracy:.4f}")
+
+    # Train final model on the entire dataset
+    model.fit(X, y)
+
+    # Plot ROC Curve using existing function
+    plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
+
+    # Plot Confusion Matrix using existing function
+    plot_confusion_matrix(true_labels, predictions, target_name, classes)
+   
+
+    return model, loocv_accuracy
+
 
 def train_model(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None, save_auc=None):
     """

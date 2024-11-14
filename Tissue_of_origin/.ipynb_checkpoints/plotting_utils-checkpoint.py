@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.metrics import precision_recall_curve, average_precision_score
 from sklearn.preprocessing import label_binarize
-
+import pandas as pd
 
 
 
@@ -10,6 +10,7 @@ import os
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, roc_auc_score
 from sklearn.preprocessing import label_binarize
+import numpy as np
 
 def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes, save_folder=None):
     plt.figure(figsize=(12, 10))
@@ -17,12 +18,16 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes, save_fol
     if save_folder and not os.path.exists(save_folder):
         os.makedirs(save_folder)
 
-    if len(y_train.unique()) == 2:
-        # Binary classification case
-        fpr, tpr, _ = roc_curve(y_test, y_pred_proba[:, 1])
+    if len(np.unique(y_train)) == 2:  # Binary classification case
+        # Dynamically determine the positive label
+        label_counts = pd.Series(y_train).value_counts()
+        pos_label = label_counts.index[-1]  # Treat the less frequent label as the positive class
+    
+        # Calculate ROC curve
+        fpr, tpr, _ = roc_curve(y_test, y_pred_proba[:, 1], pos_label=pos_label)
         roc_auc = roc_auc_score(y_test, y_pred_proba[:, 1])
         plt.plot(fpr, tpr, label=f'{target_name} ROC curve (AUC = {roc_auc:.2f})')
-
+    
         # Save data to file
         if save_folder:
             file_path = os.path.join(save_folder, f"{target_name}.tsv")
