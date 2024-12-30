@@ -25,6 +25,7 @@ from sklearn.model_selection import StratifiedKFold, GridSearchCV, RandomizedSea
 from sklearn.metrics import accuracy_score, make_scorer, roc_auc_score
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
+import matplotlib.pyplot as plt
 
 def train_model_nested_cv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None, outer_cv_folds=5, inner_cv_folds=3):
     """
@@ -148,7 +149,7 @@ def combine_train_test(train_df, test_df):
     combined_df = pd.concat([train_df, test_df], ignore_index=True)
     return combined_df
 
-def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None):
+def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None,save_figures_path=None):
     """
     Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, plots the ROC curve, and confusion matrix.
 
@@ -232,14 +233,34 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
     loocv_accuracy = accuracy_score(true_labels, predictions)
     print(f"LOOCV Accuracy: {loocv_accuracy:.4f}")
 
+
+    if save_figures_path:
+        # Temporarily suppress plt.show()
+        original_show = plt.show
+        plt.show = lambda: None
+         # Plot ROC Curve using existing function
+        plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
+        plt.savefig(save_figures_path+"/cancer_roc.png")  # Save the loss vs epochs plot
+        plt.clf()  # Clear the plot
+
+        # Plot Confusion Matrix using existing function
+        plot_confusion_matrix(true_labels, predictions, target_name, classes)
+
+        plt.savefig(save_figures_path+"/cancer_confusion_matrix.png")  # Save the confusion matrix plot
+        plt.clf()  # Clear the plot
+
+        # Restore plt.show
+        plt.show = original_show
+
+    else:
+        # Plot ROC Curve using existing function
+        plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
+
+        # Plot Confusion Matrix using existing function
+        plot_confusion_matrix(true_labels, predictions, target_name, classes)
+
     # Train final model on the entire dataset
     model.fit(X, y)
-
-    # Plot ROC Curve using existing function
-    plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
-
-    # Plot Confusion Matrix using existing function
-    plot_confusion_matrix(true_labels, predictions, target_name, classes)
    
 
     return model, loocv_accuracy
