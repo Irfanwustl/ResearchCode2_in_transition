@@ -25,7 +25,11 @@ from sklearn.model_selection import StratifiedKFold, GridSearchCV, RandomizedSea
 from sklearn.metrics import accuracy_score, make_scorer, roc_auc_score
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
+
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
 import matplotlib.pyplot as plt
+import os
+import csv
 
 def train_model_nested_cv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None, outer_cv_folds=5, inner_cv_folds=3):
     """
@@ -149,7 +153,7 @@ def combine_train_test(train_df, test_df):
     combined_df = pd.concat([train_df, test_df], ignore_index=True)
     return combined_df
 
-def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None,save_figures_path=None):
+def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None,save_figures_path=None,output_file=None):
     """
     Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, plots the ROC curve, and confusion matrix.
 
@@ -252,6 +256,26 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
         # Restore plt.show
         plt.show = original_show
 
+
+        if output_file:
+            # Determine whether the problem is binary or multi-class
+            if len(np.unique(true_labels)) == 2:  # Binary classification
+                average_type = 'binary'
+                pos_label = 'Bladder'  # Set 'Bladder' as the positive label
+            else:  # Multi-class classification
+                average_type = 'macro'  # You can adjust this to 'micro' or 'weighted' as needed
+                pos_label = None  # Not needed for multi-class
+
+
+            # Calculate precision, recall, and F1 score dynamically
+            precision = precision_score(true_labels, predictions, average=average_type, pos_label=pos_label)
+            recall = recall_score(true_labels, predictions, average=average_type, pos_label=pos_label)
+            f1 = f1_score(true_labels, predictions, average=average_type, pos_label=pos_label)
+
+            # Save metrics to file
+            save_metrics_to_file(os.path.basename(save_figures_path), precision, recall, f1, output_file)
+
+
     else:
         # Plot ROC Curve using existing function
         plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
@@ -259,11 +283,32 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
         # Plot Confusion Matrix using existing function
         plot_confusion_matrix(true_labels, predictions, target_name, classes)
 
+    
+
+
+       
+
     # Train final model on the entire dataset
     model.fit(X, y)
    
 
     return model, loocv_accuracy
+
+
+def save_metrics_to_file(model_name, precision, recall, f1, output_file):
+    # Check if the file exists
+    file_exists = os.path.isfile(output_file)
+    
+    # Open the file in append mode
+    with open(output_file, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        
+        # Write the header only if the file is empty
+        if os.stat(output_file).st_size == 0:  # Check if the file is empty
+            writer.writerow(['model', 'precision', 'recall', 'f1_score'])        
+        # Write the metrics for the current run
+        writer.writerow([model_name, precision, recall, f1])
+
 
 
 def train_model(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None, save_auc=None):
