@@ -26,7 +26,7 @@ from sklearn.metrics import accuracy_score, make_scorer, roc_auc_score
 from sklearn.ensemble import RandomForestClassifier
 import pandas as pd
 
-from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score
+from sklearn.metrics import  precision_score, recall_score, f1_score, roc_auc_score, balanced_accuracy_score, matthews_corrcoef
 import matplotlib.pyplot as plt
 import os
 import csv
@@ -262,18 +262,26 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
             if len(np.unique(true_labels)) == 2:  # Binary classification
                 average_type = 'binary'
                 pos_label = 'Bladder'  # Set 'Bladder' as the positive label
+                probabilities_positive_class = probabilities[:, 1]  # Extract probabilities for the positive class
+                auc = roc_auc_score(true_labels, probabilities_positive_class)
             else:  # Multi-class classification
-                average_type = 'macro'  # You can adjust this to 'micro' or 'weighted' as needed
-                pos_label = None  # Not needed for multi-class
-
+                average_type = 'macro'  # Adjust as needed
+                pos_label = None
+                auc = roc_auc_score(true_labels, probabilities, multi_class='ovr')
 
             # Calculate precision, recall, and F1 score dynamically
             precision = precision_score(true_labels, predictions, average=average_type, pos_label=pos_label)
             recall = recall_score(true_labels, predictions, average=average_type, pos_label=pos_label)
             f1 = f1_score(true_labels, predictions, average=average_type, pos_label=pos_label)
 
+            # Calculate additional metrics
+            balanced_acc = balanced_accuracy_score(true_labels, predictions)
+            mcc = matthews_corrcoef(true_labels, predictions)
+
             # Save metrics to file
-            save_metrics_to_file(os.path.basename(save_figures_path), precision, recall, f1, output_file)
+            save_metrics_to_file(os.path.basename(save_figures_path), precision, recall, f1, auc, balanced_acc, mcc, output_file)
+
+
 
 
     else:
@@ -295,7 +303,7 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
     return model, loocv_accuracy
 
 
-def save_metrics_to_file(model_name, precision, recall, f1, output_file):
+def save_metrics_to_file(model_name, precision, recall, f1, auc, balanced_acc, mcc, output_file):
     # Check if the file exists
     file_exists = os.path.isfile(output_file)
     
@@ -305,9 +313,10 @@ def save_metrics_to_file(model_name, precision, recall, f1, output_file):
         
         # Write the header only if the file is empty
         if os.stat(output_file).st_size == 0:  # Check if the file is empty
-            writer.writerow(['model', 'precision', 'recall', 'f1_score'])        
+            writer.writerow(['model', 'precision', 'recall', 'f1_score', 'auc', 'balanced_accuracy', 'mcc'])
+        
         # Write the metrics for the current run
-        writer.writerow([model_name, precision, recall, f1])
+        writer.writerow([model_name, precision, recall, f1, auc, balanced_acc, mcc])
 
 
 
