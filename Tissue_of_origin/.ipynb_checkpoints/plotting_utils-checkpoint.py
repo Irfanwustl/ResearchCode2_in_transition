@@ -62,8 +62,8 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes, save_fol
 
         # Initialize the legend text
         legend_text = (
-            f'Macro AUC: {macro_auc:.2f}\n'
-            f'Micro AUC: {micro_auc:.2f}\n'
+            # f'Macro AUC: {macro_auc:.2f}\n' #for dissertation plot
+            # f'Micro AUC: {micro_auc:.2f}\n' #for dissertation plot
             f'Average AUC: {average_auc:.2f}\n'
         )
 
@@ -71,11 +71,13 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes, save_fol
         class_counts_train = y_train.value_counts()
         class_counts_test = y_test.value_counts()
 
-        for class_label in classes:
-            train_count = class_counts_train.get(class_label, 0)
-            test_count = class_counts_test.get(class_label, 0)
-            total_count = train_count + test_count
-            legend_text += f"'{class_label}': {train_count} training samples, {test_count} testing samples, {total_count} total\n"
+        #for dissertation plot
+        # for class_label in classes:
+        #     train_count = class_counts_train.get(class_label, 0)
+        #     test_count = class_counts_test.get(class_label, 0)
+        #     total_count = train_count + test_count
+        #     legend_text += f"'{class_label}': {train_count} training samples, {test_count} testing samples, {total_count} total\n"
+
 
         plt.plot([], [], ' ', label=legend_text)  # Add the text to the legend
 
@@ -83,14 +85,14 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes, save_fol
         for i, class_label in enumerate(classes):
             fpr, tpr, _ = roc_curve(y_test_bin[:, i], y_pred_proba[:, i])
             roc_auc = roc_auc_score(y_test_bin[:, i], y_pred_proba[:, i])
-            plt.plot(fpr, tpr, label=f'ROC curve of class {class_label} (area = {roc_auc:.2f})')
+            plt.plot(fpr, tpr, label=f'{class_label} (area = {roc_auc:.2f})')
     
     plt.plot([0, 1], [0, 1], 'k--')  # Diagonal line
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title(f'Receiver Operating Characteristic (ROC) Curve for {target_name}')
+    #plt.title(f'Receiver Operating Characteristic (ROC) Curve for {target_name}')
     plt.legend(loc='lower right')
     plt.show()
 
@@ -136,9 +138,19 @@ def plot_confusion_matrix(y_test, y_pred, target_name, classes):
     cm_normalized = confusion_matrix(y_test, y_pred, normalize='true')
     disp_normalized = ConfusionMatrixDisplay(confusion_matrix=cm_normalized, display_labels=classes)
     disp_normalized.plot(cmap=plt.cm.Blues, values_format='.2f', ax=ax[1])
-    ax[1].set_title(f'Normalized Confusion Matrix for {target_name}')
+   # ax[1].set_title(f'Normalized Confusion Matrix for {target_name}')
 
     plt.tight_layout()
+    plt.show()
+
+def plot_separate_normalized_confusion_matrix(y_test, y_pred, target_name, classes):
+    """Function to plot the normalized confusion matrix separately."""
+    cm_normalized = confusion_matrix(y_test, y_pred, normalize='true')
+    
+    fig, ax = plt.subplots(figsize=(8, 6))
+    disp_normalized = ConfusionMatrixDisplay(confusion_matrix=cm_normalized, display_labels=classes)
+    disp_normalized.plot(cmap=plt.cm.Blues, values_format='.2f', ax=ax)
+   # ax.set_title(f'Separate Normalized Confusion Matrix for {target_name}')
     plt.show()
 
 def plot_classification_results(model, y_pred, y_pred_proba, y_test,y_train, target_name, save_folder=None):

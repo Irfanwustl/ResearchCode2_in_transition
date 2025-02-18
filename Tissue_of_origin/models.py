@@ -1,4 +1,4 @@
-from plotting_utils import plot_classification_results, plot_roc_curve, plot_confusion_matrix
+from plotting_utils import plot_classification_results, plot_roc_curve, plot_confusion_matrix, plot_separate_normalized_confusion_matrix
 from sklearn.ensemble import RandomForestClassifier
 
 from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, ConfusionMatrixDisplay
@@ -251,6 +251,12 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
         plot_confusion_matrix(true_labels, predictions, target_name, classes)
 
         plt.savefig(save_figures_path+"/cancer_confusion_matrix.png")  # Save the confusion matrix plot
+        plt.clf()  # Clear the plot
+
+
+        plot_separate_normalized_confusion_matrix(true_labels, predictions, target_name, classes)
+
+        plt.savefig(save_figures_path+"/cancer_confusion_matrix_Normalized.png")  # Save the confusion matrix plot
         plt.clf()  # Clear the plot
 
         # Restore plt.show
