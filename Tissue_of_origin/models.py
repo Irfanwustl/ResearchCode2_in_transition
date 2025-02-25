@@ -150,25 +150,174 @@ def combine_train_test(train_df, test_df):
     Returns:
         combined_df (DataFrame): The combined dataset with train and test data.
     """
-    combined_df = pd.concat([train_df, test_df], ignore_index=True)
+    combined_df = pd.concat([train_df, test_df], verify_integrity=True)
     return combined_df
 
-def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None,save_figures_path=None,output_file=None):
-    """
-    Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, plots the ROC curve, and confusion matrix.
+# def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None,save_figures_path=None,output_file=None):
+#     """
+#     Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, plots the ROC curve, and confusion matrix.
 
-    Parameters:
-        dataset (DataFrame): Combined dataset with features and target column.
-        target_name (str): The name of the target column.
-        model (object): Machine learning model to train. Defaults to RandomForestClassifier.
-        param_grid (dict): Hyperparameter grid for tuning. If None, no tuning is performed.
-        search_method (str): Method for hyperparameter search ('grid' or 'random').
-        scoring (str): Metric for model evaluation (e.g., 'roc_auc_macro', 'accuracy').
-        save_folder (str): Folder to save ROC data files. If None, files are not saved.
+#     Parameters:
+#         dataset (DataFrame): Combined dataset with features and target column.
+#         target_name (str): The name of the target column.
+#         model (object): Machine learning model to train. Defaults to RandomForestClassifier.
+#         param_grid (dict): Hyperparameter grid for tuning. If None, no tuning is performed.
+#         search_method (str): Method for hyperparameter search ('grid' or 'random').
+#         scoring (str): Metric for model evaluation (e.g., 'roc_auc_macro', 'accuracy').
+#         save_folder (str): Folder to save ROC data files. If None, files are not saved.
+
+#     Returns:
+#         model (object): The trained model.
+#         loocv_accuracy (float): The accuracy from LOOCV.
+#     """
+
+#     # If no model is provided, use RandomForestClassifier as the default
+#     if model is None:
+#         model = RandomForestClassifier(random_state=0, class_weight='balanced')
+
+#     # Splitting dataset into features and target
+#     X = dataset.drop(columns=[target_name])
+#     y = dataset[target_name]
+
+#     # Extract the class labels from y
+#     classes = np.unique(y)  # Automatically deduce class names from y
+
+#     # Configure the scoring metric based on user input
+#     if scoring == 'roc_auc_macro':
+#         scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='macro')
+#     elif scoring == 'roc_auc_micro':
+#         scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='micro')
+#     elif scoring == 'balanced_accuracy':
+#         scoring_metric = 'balanced_accuracy'
+#     else:
+#         # Default to accuracy if no or unrecognized scoring is provided
+#         scoring_metric = scoring or 'accuracy'
+
+#     # Set up Leave-One-Out Cross-Validation
+#     loo = LeaveOneOut()
+
+#     # If hyperparameter tuning is requested
+#     if param_grid is not None:
+#         if search_method == 'grid':
+#             search = GridSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1)
+#         elif search_method == 'random':
+#             search = RandomizedSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1, random_state=0)
+
+#         # Perform the search and find the best model
+#         search.fit(X, y)
+#         model = search.best_estimator_
+#         print(f"Best hyperparameters found: {search.best_params_}")
+    
+#     # Perform LOOCV
+#     predictions = []
+#     probabilities = []
+#     true_labels = []
+
+#     for train_index, test_index in loo.split(X):
+#         # Split data into training and testing folds for LOOCV
+#         X_train_fold, X_test_fold = X.iloc[train_index], X.iloc[test_index]
+#         y_train_fold, y_test_fold = y.iloc[train_index], y.iloc[test_index]
+
+#         # Train the model on the training fold
+#         model.fit(X_train_fold, y_train_fold)
+
+#         # Predict on the test fold
+#         y_pred = model.predict(X_test_fold)
+#         y_proba = model.predict_proba(X_test_fold)
+
+#         predictions.append(y_pred[0])  # Append the predicted label
+#         probabilities.append(y_proba[0])  # Append the predicted probabilities
+#         true_labels.append(y_test_fold.iloc[0])  # Append the true label
+
+#     # Convert lists to numpy arrays
+#     probabilities = np.array(probabilities)
+#     true_labels = np.array(true_labels)
+
+#     # Calculate LOOCV accuracy
+#     loocv_accuracy = accuracy_score(true_labels, predictions)
+#     print(f"LOOCV Accuracy: {loocv_accuracy:.4f}")
+
+
+#     if save_figures_path:
+#         # Temporarily suppress plt.show()
+#         original_show = plt.show
+#         plt.show = lambda: None
+#          # Plot ROC Curve using existing function
+#         plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
+#         plt.savefig(save_figures_path+"/cancer_roc.png")  # Save the loss vs epochs plot
+#         plt.clf()  # Clear the plot
+
+#         # Plot Confusion Matrix using existing function
+#         plot_confusion_matrix(true_labels, predictions, target_name, classes)
+
+#         plt.savefig(save_figures_path+"/cancer_confusion_matrix.png")  # Save the confusion matrix plot
+#         plt.clf()  # Clear the plot
+
+
+#         plot_separate_normalized_confusion_matrix(true_labels, predictions, target_name, classes)
+
+#         plt.savefig(save_figures_path+"/cancer_confusion_matrix_Normalized.png")  # Save the confusion matrix plot
+#         plt.clf()  # Clear the plot
+
+#         # Restore plt.show
+#         plt.show = original_show
+
+
+#         if output_file:
+#             # Determine whether the problem is binary or multi-class
+#             if len(np.unique(true_labels)) == 2:  # Binary classification
+#                 average_type = 'binary'
+#                 pos_label = 'Bladder'  # Set 'Bladder' as the positive label
+#                 probabilities_positive_class = probabilities[:, 1]  # Extract probabilities for the positive class
+#                 auc = roc_auc_score(true_labels, probabilities_positive_class)
+#             else:  # Multi-class classification
+#                 average_type = 'macro'  # Adjust as needed
+#                 pos_label = None
+#                 auc = roc_auc_score(true_labels, probabilities, multi_class='ovr')
+
+#             # Calculate precision, recall, and F1 score dynamically
+#             precision = precision_score(true_labels, predictions, average=average_type, pos_label=pos_label)
+#             recall = recall_score(true_labels, predictions, average=average_type, pos_label=pos_label)
+#             f1 = f1_score(true_labels, predictions, average=average_type, pos_label=pos_label)
+
+#             # Calculate additional metrics
+#             balanced_acc = balanced_accuracy_score(true_labels, predictions)
+#             mcc = matthews_corrcoef(true_labels, predictions)
+
+#             # Save metrics to file
+#             save_metrics_to_file(os.path.basename(save_figures_path), precision, recall, f1, auc, balanced_acc, mcc, output_file)
+
+
+
+
+#     else:
+#         # Plot ROC Curve using existing function
+#         plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
+
+#         # Plot Confusion Matrix using existing function
+#         plot_confusion_matrix(true_labels, predictions, target_name, classes)
+
+    
+
+
+       
+
+#     # Train final model on the entire dataset
+#     model.fit(X, y)
+   
+
+#     return model, loocv_accuracy
+
+
+def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None, save_figures_path=None, output_file=None):
+    """
+    Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, 
+    plots the ROC curve, and confusion matrix.
 
     Returns:
         model (object): The trained model.
         loocv_accuracy (float): The accuracy from LOOCV.
+        oof_df (DataFrame): A DataFrame containing true labels, predicted labels, and class probabilities.
     """
 
     # If no model is provided, use RandomForestClassifier as the default
@@ -178,8 +327,6 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
     # Splitting dataset into features and target
     X = dataset.drop(columns=[target_name])
     y = dataset[target_name]
-
-    # Extract the class labels from y
     classes = np.unique(y)  # Automatically deduce class names from y
 
     # Configure the scoring metric based on user input
@@ -190,7 +337,6 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
     elif scoring == 'balanced_accuracy':
         scoring_metric = 'balanced_accuracy'
     else:
-        # Default to accuracy if no or unrecognized scoring is provided
         scoring_metric = scoring or 'accuracy'
 
     # Set up Leave-One-Out Cross-Validation
@@ -203,110 +349,222 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
         elif search_method == 'random':
             search = RandomizedSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1, random_state=0)
 
-        # Perform the search and find the best model
         search.fit(X, y)
         model = search.best_estimator_
         print(f"Best hyperparameters found: {search.best_params_}")
-    
-    # Perform LOOCV
-    predictions = []
-    probabilities = []
-    true_labels = []
 
+    # OOF storage with index preservation
+    oof_data = []  
+    indices = []  # Store original indices
+    
     for train_index, test_index in loo.split(X):
-        # Split data into training and testing folds for LOOCV
         X_train_fold, X_test_fold = X.iloc[train_index], X.iloc[test_index]
         y_train_fold, y_test_fold = y.iloc[train_index], y.iloc[test_index]
-
-        # Train the model on the training fold
+    
         model.fit(X_train_fold, y_train_fold)
-
-        # Predict on the test fold
+    
         y_pred = model.predict(X_test_fold)
         y_proba = model.predict_proba(X_test_fold)
-
-        predictions.append(y_pred[0])  # Append the predicted label
-        probabilities.append(y_proba[0])  # Append the predicted probabilities
-        true_labels.append(y_test_fold.iloc[0])  # Append the true label
-
-    # Convert lists to numpy arrays
-    probabilities = np.array(probabilities)
-    true_labels = np.array(true_labels)
+    
+        # Store the OOF results
+        row = {'True Label': y_test_fold.iloc[0], 'Predicted Label': y_pred[0]}
+        for class_idx, class_label in enumerate(classes):
+            row[f'Probability_{class_label}'] = y_proba[0, class_idx]
+        
+        oof_data.append(row)
+        indices.append(X_test_fold.index[0])  # Store original index
+    
+    # Convert to DataFrame and set indices
+    oof_df = pd.DataFrame(oof_data, index=indices)
+    
+    # Ensure index is restored correctly
+    oof_df.index.name = 'Sample Index'
 
     # Calculate LOOCV accuracy
-    loocv_accuracy = accuracy_score(true_labels, predictions)
+    loocv_accuracy = accuracy_score(oof_df['True Label'], oof_df['Predicted Label'])
     print(f"LOOCV Accuracy: {loocv_accuracy:.4f}")
 
-
     if save_figures_path:
-        # Temporarily suppress plt.show()
         original_show = plt.show
         plt.show = lambda: None
-         # Plot ROC Curve using existing function
-        plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
-        plt.savefig(save_figures_path+"/cancer_roc.png")  # Save the loss vs epochs plot
-        plt.clf()  # Clear the plot
+
+        # Plot ROC Curve using existing function
+        plot_roc_curve(oof_df['True Label'], oof_df.iloc[:, 2:].values, y, target_name, classes, save_folder)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png")
+        plt.clf()
 
         # Plot Confusion Matrix using existing function
-        plot_confusion_matrix(true_labels, predictions, target_name, classes)
+        plot_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, classes)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix.png")
+        plt.clf()
 
-        plt.savefig(save_figures_path+"/cancer_confusion_matrix.png")  # Save the confusion matrix plot
-        plt.clf()  # Clear the plot
+        plot_separate_normalized_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, classes)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix_Normalized.png")
+        plt.clf()
 
-
-        plot_separate_normalized_confusion_matrix(true_labels, predictions, target_name, classes)
-
-        plt.savefig(save_figures_path+"/cancer_confusion_matrix_Normalized.png")  # Save the confusion matrix plot
-        plt.clf()  # Clear the plot
-
-        # Restore plt.show
         plt.show = original_show
 
-
         if output_file:
-            # Determine whether the problem is binary or multi-class
-            if len(np.unique(true_labels)) == 2:  # Binary classification
+            if len(np.unique(oof_df['True Label'])) == 2:  # Binary classification
                 average_type = 'binary'
-                pos_label = 'Bladder'  # Set 'Bladder' as the positive label
-                probabilities_positive_class = probabilities[:, 1]  # Extract probabilities for the positive class
-                auc = roc_auc_score(true_labels, probabilities_positive_class)
+                pos_label = 'Bladder'
+                probabilities_positive_class = oof_df[f'Probability_Bladder']
+                auc = roc_auc_score(oof_df['True Label'], probabilities_positive_class)
             else:  # Multi-class classification
-                average_type = 'macro'  # Adjust as needed
+                average_type = 'macro'
                 pos_label = None
-                auc = roc_auc_score(true_labels, probabilities, multi_class='ovr')
+                auc = roc_auc_score(oof_df['True Label'], oof_df.iloc[:, 2:].values, multi_class='ovr')
 
-            # Calculate precision, recall, and F1 score dynamically
-            precision = precision_score(true_labels, predictions, average=average_type, pos_label=pos_label)
-            recall = recall_score(true_labels, predictions, average=average_type, pos_label=pos_label)
-            f1 = f1_score(true_labels, predictions, average=average_type, pos_label=pos_label)
+            precision = precision_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+            recall = recall_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+            f1 = f1_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+            balanced_acc = balanced_accuracy_score(oof_df['True Label'], oof_df['Predicted Label'])
+            mcc = matthews_corrcoef(oof_df['True Label'], oof_df['Predicted Label'])
 
-            # Calculate additional metrics
-            balanced_acc = balanced_accuracy_score(true_labels, predictions)
-            mcc = matthews_corrcoef(true_labels, predictions)
-
-            # Save metrics to file
             save_metrics_to_file(os.path.basename(save_figures_path), precision, recall, f1, auc, balanced_acc, mcc, output_file)
 
-
-
-
     else:
-        # Plot ROC Curve using existing function
-        plot_roc_curve(pd.Series(true_labels), probabilities, y, target_name, classes, save_folder)
-
-        # Plot Confusion Matrix using existing function
-        plot_confusion_matrix(true_labels, predictions, target_name, classes)
-
-    
-
-
-       
+        plot_roc_curve(oof_df['True Label'], oof_df.iloc[:, 2:].values, y, target_name, classes, save_folder)
+        plot_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, classes)
 
     # Train final model on the entire dataset
     model.fit(X, y)
-   
 
-    return model, loocv_accuracy
+    return model, loocv_accuracy, oof_df
+
+from xgboost import XGBClassifier
+from sklearn.preprocessing import LabelEncoder
+
+def train_model_loocv_xgb(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None, save_figures_path=None, output_file=None):
+    """
+    Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, 
+    plots the ROC curve, and confusion matrix.
+
+    Returns:
+        model (object): The trained model.
+        loocv_accuracy (float): The accuracy from LOOCV.
+        oof_df (DataFrame): A DataFrame containing true labels, predicted labels, and class probabilities.
+    """
+
+    # If no model is provided, use RandomForestClassifier as the default
+    if model is None:
+        model = RandomForestClassifier(random_state=0, class_weight='balanced')
+
+    # Splitting dataset into features and target
+    X = dataset.drop(columns=[target_name])
+    y = dataset[target_name]
+
+    # Encode target labels if they are categorical
+    label_encoder = LabelEncoder()
+    y_encoded = label_encoder.fit_transform(y)  # Convert to numerical labels
+    class_mapping = dict(zip(label_encoder.classes_, label_encoder.transform(label_encoder.classes_)))  # Store mapping
+    class_names = label_encoder.classes_  # Store class names for plotting
+
+    # Configure the scoring metric
+    if scoring == 'roc_auc_macro':
+        scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='macro')
+    elif scoring == 'roc_auc_micro':
+        scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='micro')
+    elif scoring == 'balanced_accuracy':
+        scoring_metric = 'balanced_accuracy'
+    else:
+        scoring_metric = scoring or 'accuracy'
+
+    # Set up Leave-One-Out Cross-Validation
+    loo = LeaveOneOut()
+
+    # If hyperparameter tuning is requested
+    if param_grid is not None:
+        if search_method == 'grid':
+            search = GridSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1)
+        elif search_method == 'random':
+            search = RandomizedSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1, random_state=0)
+
+        search.fit(X, y_encoded)  # Train on encoded labels
+        model = search.best_estimator_
+        print(f"Best hyperparameters found: {search.best_params_}")
+
+    # OOF storage with index preservation
+    oof_data = []  
+    indices = []  # Store original indices
+    
+    for train_index, test_index in loo.split(X):
+        X_train_fold, X_test_fold = X.iloc[train_index], X.iloc[test_index]
+        y_train_fold, y_test_fold = y_encoded[train_index], y_encoded[test_index]
+    
+        model.fit(X_train_fold, y_train_fold)
+    
+        y_pred = model.predict(X_test_fold)
+        y_proba = model.predict_proba(X_test_fold)
+    
+        # Decode labels back to original class names
+        true_label = label_encoder.inverse_transform([y_test_fold[0]])[0]
+        predicted_label = label_encoder.inverse_transform([y_pred[0]])[0]
+
+        # Store the OOF results
+        row = {'True Label': true_label, 'Predicted Label': predicted_label}
+        for class_idx, class_label in enumerate(class_names):
+            row[f'Probability_{class_label}'] = y_proba[0, class_idx]
+        
+        oof_data.append(row)
+        indices.append(X_test_fold.index[0])  # Store original index
+    
+    # Convert to DataFrame and set indices
+    oof_df = pd.DataFrame(oof_data, index=indices)
+    oof_df.index.name = 'Sample Index'
+
+    # Calculate LOOCV accuracy
+    loocv_accuracy = accuracy_score(oof_df['True Label'], oof_df['Predicted Label'])
+    print(f"LOOCV Accuracy: {loocv_accuracy:.4f}")
+
+    if save_figures_path:
+        original_show = plt.show
+        plt.show = lambda: None
+
+        # Plot ROC Curve using real class names
+        plot_roc_curve(oof_df['True Label'], oof_df.iloc[:, 2:].values, y, target_name, class_names, save_folder)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png")
+        plt.clf()
+
+        # Plot Confusion Matrix using real class names
+        plot_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, class_names)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix.png")
+        plt.clf()
+
+        plot_separate_normalized_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, class_names)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix_Normalized.png")
+        plt.clf()
+
+        plt.show = original_show
+
+        if output_file:
+            if len(np.unique(oof_df['True Label'])) == 2:  # Binary classification
+                average_type = 'binary'
+                pos_label = label_encoder.inverse_transform([1])[0]  # Get the actual positive class label
+                probabilities_positive_class = oof_df[f'Probability_{pos_label}']
+                auc = roc_auc_score(oof_df['True Label'], probabilities_positive_class)
+            else:  # Multi-class classification
+                average_type = 'macro'
+                pos_label = None
+                auc = roc_auc_score(oof_df['True Label'], oof_df.iloc[:, 2:].values, multi_class='ovr')
+
+            precision = precision_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+            recall = recall_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+            f1 = f1_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+            balanced_acc = balanced_accuracy_score(oof_df['True Label'], oof_df['Predicted Label'])
+            mcc = matthews_corrcoef(oof_df['True Label'], oof_df['Predicted Label'])
+
+            save_metrics_to_file(os.path.basename(save_figures_path), precision, recall, f1, auc, balanced_acc, mcc, output_file)
+
+    else:
+        plot_roc_curve(oof_df['True Label'], oof_df.iloc[:, 2:].values, y, target_name, class_names, save_folder)
+        plot_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, class_names)
+
+    # Train final model on the entire dataset
+    model.fit(X, y_encoded)  # Train on numerical labels
+
+    return model, loocv_accuracy, oof_df
+
 
 
 def save_metrics_to_file(model_name, precision, recall, f1, auc, balanced_acc, mcc, output_file):
@@ -326,7 +584,7 @@ def save_metrics_to_file(model_name, precision, recall, f1, auc, balanced_acc, m
 
 
 
-def train_model(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None, save_auc=None):
+def train_model(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None, save_auc=None, save_figures_path=None, save_folder=None):
     """
     Trains a model with optional hyperparameter tuning using stratified cross-validation and finds the best decision threshold for each class.
     """
@@ -393,6 +651,47 @@ def train_model(train_df, test_df, target_name='target', model=None, param_grid=
 
     # Plot classification results with the converted labels
     plot_classification_results(model, y_pred, y_proba_test, y_test, y_train, target_name,save_folder=save_auc)
+
+    if save_figures_path:
+        # Temporarily suppress plt.show()
+        original_show = plt.show
+        plt.show = lambda: None
+         # Plot ROC Curve using existing function
+        plot_roc_curve(y_test, y_proba_test, y_train, target_name, model.classes_, save_folder)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png")  # Save the loss vs epochs plot
+        plt.clf()  # Clear the plot
+
+        # Plot Confusion Matrix using existing function
+        plot_confusion_matrix(y_test, y_pred, target_name, model.classes_)
+
+        plt.savefig(save_figures_path+"/cancer_confusion_matrix.png")  # Save the confusion matrix plot
+        plt.clf()  # Clear the plot
+
+
+        plot_separate_normalized_confusion_matrix(y_test, y_pred, target_name, model.classes_)
+
+        plt.savefig(save_figures_path+"/cancer_confusion_matrix_Normalized.png")  # Save the confusion matrix plot
+        plt.clf()  # Clear the plot
+
+        # Restore plt.show
+        plt.show = original_show
+
+
+
+
+
+
+
+  
+
+    
+
+
+       
+
+
+   
+
 
     return model
 
