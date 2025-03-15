@@ -96,11 +96,11 @@ def preprocess_dataframe(df):
     return df_transposed
 
 def get_label(sample_id):
-    if sample_id.startswith('W') or sample_id.startswith('B'):
+    if sample_id.startswith('W') or sample_id.startswith('B') or sample_id.startswith('b'):
         return 'Bladder'
-    elif sample_id.startswith('R'):
+    elif sample_id.startswith('R') or sample_id.startswith('r'):
         return 'RCC'
-    elif sample_id.startswith('P'):
+    elif sample_id.startswith('P') or sample_id.startswith('p'):
         return 'Prostate'
     else:
         return 'Healthy'
@@ -166,7 +166,7 @@ def plot_class_distribution(df, target_name='target'):
     plt.xticks(rotation=0)
     plt.show()
 
-def stratified_train_test_split(df, test_size=0.2, random_state=0):
+def stratified_train_test_split(df, test_size=0.3, random_state=0):
     # Assuming the target column is named 'Target'
     X = df.drop(columns=['target'])  # Features
     y = df['target']  # Target
@@ -331,6 +331,58 @@ def subset_top_k_features(train_df, test_df, k, feature_importances_dict, target
     test_subset = test_df[selected_features + [target_name]]
 
     return train_subset, test_subset
+
+
+def rename_keys(d, replacements):
+    """
+    Rename dictionary keys based on a dictionary of replacements.
+    
+    Args:
+        d (dict): The original dictionary.
+        replacements (dict): A dictionary where keys are substrings to replace, 
+                             and values are their replacements.
+                             
+    Returns:
+        dict: A new dictionary with updated keys.
+    """
+    new_dict = {}
+    for key, value in d.items():
+        new_key = key
+        for old, new in replacements.items():
+            new_key = new_key.replace(old, new)
+        new_dict[new_key] = value
+    return new_dict
+
+
+def format_mix_probs(df1, df2):
+    # Convert index to a column for merging
+    df1 = df1.reset_index().rename(columns={"index": "library"})
+    df2 = df2.reset_index().rename(columns={"index": "library"})
+
+    # Merge df1 with df2 to get the 'cohort' column
+    result = df1.merge(df2[['library', 'target']], on="library", how="left")
+
+    
+
+    # Map cohort to probability columns
+    result["target_prob"] = result.apply(
+        lambda row: row[row["target"]] if row["target"] in result.columns else np.nan, axis=1
+    )
+
+    # Compute pct_cancer based on conditions
+    def compute_pct_cancer(library):
+        if "UC1" in library:
+            return 100
+        parts = library.split("_")
+        return int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else np.nan
+
+    result["pct_cancer"] = result["library"].apply(compute_pct_cancer)
+
+    # Set 'library' as index, keep only relevant columns, and sort
+    result = result.set_index("library")[["target", "pct_cancer", "target_prob"]]
+    result = result.sort_values(by=["target", "pct_cancer"])
+
+    return result
 
 
 

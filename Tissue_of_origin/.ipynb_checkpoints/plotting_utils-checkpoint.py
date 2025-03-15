@@ -3,6 +3,7 @@ from sklearn.metrics import roc_curve, roc_auc_score, confusion_matrix, Confusio
 from sklearn.metrics import precision_recall_curve, average_precision_score
 from sklearn.preprocessing import label_binarize
 import pandas as pd
+import seaborn as sns
 
 
 
@@ -13,6 +14,7 @@ from sklearn.preprocessing import label_binarize
 import numpy as np
 
 def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes, save_folder=None):
+    average_auc = -1
     plt.figure(figsize=(12, 10))
     
     if save_folder and not os.path.exists(save_folder):
@@ -95,6 +97,7 @@ def plot_roc_curve(y_test, y_pred_proba, y_train, target_name, classes, save_fol
     #plt.title(f'Receiver Operating Characteristic (ROC) Curve for {target_name}')
     plt.legend(loc='lower right')
     plt.show()
+    return average_auc
 
 
 def plot_precision_recall_curve(y_test, y_pred_proba, y_train, target_name, classes):
@@ -169,6 +172,53 @@ def plot_classification_results(model, y_pred, y_pred_proba, y_test,y_train, tar
     plot_confusion_matrix(y_test, y_pred, target_name, classes)
 
 
+def plot_auc_heatmap(auc_dict, save_figure_path=None):
+    """
+    Generates a heatmap from a dictionary containing AUC values.
 
+    Parameters:
+    auc_dict (dict): A dictionary where keys are in the format '{Feature}_{Model}_auc' 
+                     or '{Feature}_{Model}_LOOCV_auc' and values are AUC scores.
+    """
+    data = []
 
+    for key, value in auc_dict.items():
+        parts = key.split('_')
+        
+        # Case: If LOOCV is in the key, we need to adjust the extraction
+        if "LOOCV" in parts:
+            model = parts[-3]  # Model is the third last element
+            feature = "_".join(parts[:-3])  # Feature is everything before model
+        else:
+            model = parts[-2]  # Model is the second last element
+            feature = "_".join(parts[:-2])  # Feature is everything before model
+        
+        # Special case handling for cfRNA
+        if key.startswith("cfRNA"):
+            feature = "cfRNA"
+
+        data.append((feature, model, value))
+
+    # Convert to DataFrame
+    df = pd.DataFrame(data, columns=['Feature', 'Model', 'AUC'])
+
+    # Check for duplicates and fix them
+    if df.duplicated(subset=['Feature', 'Model']).any():
+        print("Warning: Duplicate feature-model pairs detected. Removing duplicates.")
+        df = df.groupby(['Feature', 'Model'], as_index=False).mean()  # Take the mean AUC if duplicates exist
+
+    # Pivot table for heatmap
+    heatmap_data = df.pivot(index='Feature', columns='Model', values='AUC')
+
+    # Plot heatmap
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(heatmap_data, annot=True, cmap="viridis", fmt=".2f")
+    #plt.title("AUC Heatmap for Features and Models")
+    plt.xlabel("")
+    plt.ylabel("")
+    if save_figure_path:
+        plt.savefig(save_figure_path, dpi=300, bbox_inches='tight')
+    plt.show()
+
+    
 

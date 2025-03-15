@@ -14,7 +14,8 @@ from sklearn.metrics import roc_curve, make_scorer, roc_auc_score, accuracy_scor
 from sklearn.metrics import f1_score
 from sklearn.model_selection import cross_val_score
 from sklearn.ensemble import VotingClassifier
-
+from sklearn.preprocessing import StandardScaler
+import joblib
 
 from sklearn.model_selection import LeaveOneOut
 from sklearn.metrics import accuracy_score, make_scorer, roc_auc_score
@@ -309,6 +310,131 @@ def combine_train_test(train_df, test_df):
 #     return model, loocv_accuracy
 
 
+# def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None, save_figures_path=None, output_file=None):
+#     """
+#     Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, 
+#     plots the ROC curve, and confusion matrix.
+
+#     Returns:
+#         model (object): The trained model.
+#         loocv_accuracy (float): The accuracy from LOOCV.
+#         oof_df (DataFrame): A DataFrame containing true labels, predicted labels, and class probabilities.
+#     """
+
+#     average_auc = -1
+#     # If no model is provided, use RandomForestClassifier as the default
+#     if model is None:
+#         model = RandomForestClassifier(random_state=0, class_weight='balanced')
+
+#     # Splitting dataset into features and target
+#     X = dataset.drop(columns=[target_name])
+#     y = dataset[target_name]
+#     classes = np.unique(y)  # Automatically deduce class names from y
+
+#     # Configure the scoring metric based on user input
+#     if scoring == 'roc_auc_macro':
+#         scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='macro')
+#     elif scoring == 'roc_auc_micro':
+#         scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='micro')
+#     elif scoring == 'balanced_accuracy':
+#         scoring_metric = 'balanced_accuracy'
+#     else:
+#         scoring_metric = scoring or 'accuracy'
+
+#     # Set up Leave-One-Out Cross-Validation
+#     loo = LeaveOneOut()
+
+#     # If hyperparameter tuning is requested
+#     if param_grid is not None:
+#         if search_method == 'grid':
+#             search = GridSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1)
+#         elif search_method == 'random':
+#             search = RandomizedSearchCV(model, param_grid, cv=loo, scoring=scoring_metric, n_jobs=-1, random_state=0)
+
+#         search.fit(X, y)
+#         model = search.best_estimator_
+#         print(f"Best hyperparameters found: {search.best_params_}")
+
+#     # OOF storage with index preservation
+#     oof_data = []  
+#     indices = []  # Store original indices
+    
+#     for train_index, test_index in loo.split(X):
+#         X_train_fold, X_test_fold = X.iloc[train_index], X.iloc[test_index]
+#         y_train_fold, y_test_fold = y.iloc[train_index], y.iloc[test_index]
+    
+#         model.fit(X_train_fold, y_train_fold)
+    
+#         y_pred = model.predict(X_test_fold)
+#         y_proba = model.predict_proba(X_test_fold)
+    
+#         # Store the OOF results
+#         row = {'True Label': y_test_fold.iloc[0], 'Predicted Label': y_pred[0]}
+#         for class_idx, class_label in enumerate(classes):
+#             row[f'Probability_{class_label}'] = y_proba[0, class_idx]
+        
+#         oof_data.append(row)
+#         indices.append(X_test_fold.index[0])  # Store original index
+    
+#     # Convert to DataFrame and set indices
+#     oof_df = pd.DataFrame(oof_data, index=indices)
+    
+#     # Ensure index is restored correctly
+#     oof_df.index.name = 'Sample Index'
+
+#     # Calculate LOOCV accuracy
+#     loocv_accuracy = accuracy_score(oof_df['True Label'], oof_df['Predicted Label'])
+#     print(f"LOOCV Accuracy: {loocv_accuracy:.4f}")
+
+#     if save_figures_path:
+#         original_show = plt.show
+#         plt.show = lambda: None
+
+#         # Plot ROC Curve using existing function
+#         average_auc = plot_roc_curve(oof_df['True Label'], oof_df.iloc[:, 2:].values, y, target_name, classes, save_folder)
+#         plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png")
+#         plt.clf()
+
+#         # Plot Confusion Matrix using existing function
+#         plot_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, classes)
+#         plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix.png")
+#         plt.clf()
+
+#         plot_separate_normalized_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, classes)
+#         plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix_Normalized.png")
+#         plt.clf()
+
+#         plt.show = original_show
+
+#         if output_file:
+#             if len(np.unique(oof_df['True Label'])) == 2:  # Binary classification
+#                 average_type = 'binary'
+#                 pos_label = 'Bladder'
+#                 probabilities_positive_class = oof_df[f'Probability_Bladder']
+#                 auc = roc_auc_score(oof_df['True Label'], probabilities_positive_class)
+#             else:  # Multi-class classification
+#                 average_type = 'macro'
+#                 pos_label = None
+#                 auc = roc_auc_score(oof_df['True Label'], oof_df.iloc[:, 2:].values, multi_class='ovr')
+
+#             precision = precision_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+#             recall = recall_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+#             f1 = f1_score(oof_df['True Label'], oof_df['Predicted Label'], average=average_type, pos_label=pos_label)
+#             balanced_acc = balanced_accuracy_score(oof_df['True Label'], oof_df['Predicted Label'])
+#             mcc = matthews_corrcoef(oof_df['True Label'], oof_df['Predicted Label'])
+
+#             save_metrics_to_file(os.path.basename(save_figures_path), precision, recall, f1, auc, balanced_acc, mcc, output_file)
+
+#     else:
+#         plot_roc_curve(oof_df['True Label'], oof_df.iloc[:, 2:].values, y, target_name, classes, save_folder)
+#         plot_confusion_matrix(oof_df['True Label'], oof_df['Predicted Label'], target_name, classes)
+
+#     # Train final model on the entire dataset
+#     model.fit(X, y)
+
+#     return model, average_auc, oof_df
+
+
 def train_model_loocv(dataset, target_name='target', model=None, param_grid=None, search_method='grid', scoring=None, save_folder=None, save_figures_path=None, output_file=None):
     """
     Trains a model using Leave-One-Out Cross-Validation (LOOCV) on a single dataset, 
@@ -320,13 +446,19 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
         oof_df (DataFrame): A DataFrame containing true labels, predicted labels, and class probabilities.
     """
 
+    average_auc = -1
     # If no model is provided, use RandomForestClassifier as the default
     if model is None:
         model = RandomForestClassifier(random_state=0, class_weight='balanced')
 
-    # Splitting dataset into features and target
-    X = dataset.drop(columns=[target_name])
+    # Store the original indices before transforming
+    original_indices = dataset.index
+    
+    # Apply StandardScaler
+    scaler = StandardScaler()
+    X = scaler.fit_transform(dataset.drop(columns=[target_name]))
     y = dataset[target_name]
+
     classes = np.unique(y)  # Automatically deduce class names from y
 
     # Configure the scoring metric based on user input
@@ -358,7 +490,7 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
     indices = []  # Store original indices
     
     for train_index, test_index in loo.split(X):
-        X_train_fold, X_test_fold = X.iloc[train_index], X.iloc[test_index]
+        X_train_fold, X_test_fold = X[train_index], X[test_index]
         y_train_fold, y_test_fold = y.iloc[train_index], y.iloc[test_index]
     
         model.fit(X_train_fold, y_train_fold)
@@ -372,7 +504,7 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
             row[f'Probability_{class_label}'] = y_proba[0, class_idx]
         
         oof_data.append(row)
-        indices.append(X_test_fold.index[0])  # Store original index
+        indices.append(original_indices[test_index][0])  # Retrieve the original index correctly
     
     # Convert to DataFrame and set indices
     oof_df = pd.DataFrame(oof_data, index=indices)
@@ -389,7 +521,7 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
         plt.show = lambda: None
 
         # Plot ROC Curve using existing function
-        plot_roc_curve(oof_df['True Label'], oof_df.iloc[:, 2:].values, y, target_name, classes, save_folder)
+        average_auc = plot_roc_curve(oof_df['True Label'], oof_df.iloc[:, 2:].values, y, target_name, classes, save_folder)
         plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png")
         plt.clf()
 
@@ -430,7 +562,9 @@ def train_model_loocv(dataset, target_name='target', model=None, param_grid=None
     # Train final model on the entire dataset
     model.fit(X, y)
 
-    return model, loocv_accuracy, oof_df
+    model.scaler = scaler
+
+    return model, average_auc, oof_df
 
 from xgboost import XGBClassifier
 from sklearn.preprocessing import LabelEncoder
@@ -588,6 +722,7 @@ def train_model(train_df, test_df, target_name='target', model=None, param_grid=
     """
     Trains a model with optional hyperparameter tuning using stratified cross-validation and finds the best decision threshold for each class.
     """
+    average_auc = -1
     # If no model is provided, use RandomForestClassifier as the default
     if model is None:
         model = RandomForestClassifier(random_state=0, class_weight='balanced')
@@ -657,7 +792,7 @@ def train_model(train_df, test_df, target_name='target', model=None, param_grid=
         original_show = plt.show
         plt.show = lambda: None
          # Plot ROC Curve using existing function
-        plot_roc_curve(y_test, y_proba_test, y_train, target_name, model.classes_, save_folder)
+        average_auc = plot_roc_curve(y_test, y_proba_test, y_train, target_name, model.classes_, save_folder)
         plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png")  # Save the loss vs epochs plot
         plt.clf()  # Clear the plot
 
@@ -693,8 +828,182 @@ def train_model(train_df, test_df, target_name='target', model=None, param_grid=
    
 
 
-    return model
+    return model, average_auc
 
+def train_model_withScaling(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None, save_auc=None, save_figures_path=None, save_folder=None):
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(train_df.drop(columns=[target_name]))
+    X_test = scaler.transform(test_df.drop(columns=[target_name]))
+    
+    # Keep y_train and y_test unchanged
+    y_train = train_df[target_name]
+    y_test = test_df[target_name]
+
+    model = LogisticRegression(penalty="l1", solver="saga", C=1/0.01, max_iter=5000, random_state=0)
+    model.fit(X_train, y_train)
+
+    model.scaler = scaler
+
+   
+
+   
+
+
+    return model, -1
+
+    
+
+    
+    
+
+# def train_model_withScaling(train_df, test_df, target_name='target', model=None, param_grid=None, cv=5, search_method='grid', scoring=None, save_auc=None, save_figures_path=None, save_folder=None):
+#     """
+#     Trains a model with optional hyperparameter tuning using stratified cross-validation and finds the best decision threshold for each class.
+#     """
+#     average_auc = -1
+#     # If no model is provided, use RandomForestClassifier as the default
+#     if model is None:
+#         model = RandomForestClassifier(random_state=0, class_weight='balanced')
+
+#     # Initialize the scaler
+#     scaler = StandardScaler()
+    
+#     # Fit on training data and transform both train and test
+#     X_train = scaler.fit_transform(train_df.drop(columns=[target_name]))
+#     X_test = scaler.transform(test_df.drop(columns=[target_name]))
+    
+#     # Keep y_train and y_test unchanged
+#     y_train = train_df[target_name]
+#     y_test = test_df[target_name]
+
+#     # Extract the class labels from y_train
+#     classes = np.unique(y_train)  # Automatically deduce class names from y_train
+
+#     # Configure the scoring metric based on user input
+#     if scoring == 'roc_auc_macro':
+#         scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='macro')
+#     elif scoring == 'roc_auc_micro':
+#         scoring_metric = make_scorer(roc_auc_score, needs_proba=True, multi_class='ovr', average='micro')
+#     elif scoring == 'balanced_accuracy':
+#         scoring_metric = 'balanced_accuracy'
+#     else:
+#         # Default to accuracy if no or unrecognized scoring is provided
+#         scoring_metric = scoring or 'accuracy'
+
+#     # Set up stratified cross-validation
+#     stratified_cv = StratifiedKFold(n_splits=cv)
+
+#     # If hyperparameter tuning is requested
+#     if param_grid is not None:
+#         if search_method == 'grid':
+#             search = GridSearchCV(model, param_grid, cv=stratified_cv, scoring=scoring_metric, n_jobs=-1)
+#         elif search_method == 'random':
+#             search = RandomizedSearchCV(model, param_grid, cv=stratified_cv, scoring=scoring_metric, n_jobs=-1, random_state=0)
+        
+#         # Perform the search and find the best model
+#         search.fit(X_train, y_train)
+#         model = search.best_estimator_
+#         print(f"Best hyperparameters found: {search.best_params_}")
+#     else:
+#         # Fit the model without tuning
+#         model.fit(X_train, y_train)
+
+#     # Use stratified cross-validation to predict probabilities on the training data
+#     y_proba_cv = cross_val_predict(model, X_train, y_train, cv=stratified_cv, method='predict_proba')
+
+#     # Find best thresholds using cross-validation probabilities
+#     # best_thresholds = find_best_thresholds_cv(y_proba_cv, y_train, num_classes=len(classes))
+
+#     # Compute cross-validated accuracy
+#     cv_scores = cross_val_score(model, X_train, y_train, cv=stratified_cv, scoring='accuracy')
+#     cv_accuracy = cv_scores.mean()
+#     print(f"Cross-validated Accuracy: {cv_accuracy:.4f}")
+
+#     # Train final model on all training data
+#     model.fit(X_train, y_train)
+
+#     # Predict on test data
+#     y_proba_test = model.predict_proba(X_test)
+#     y_pred = model.predict(X_test)
+
+#     # Plot classification results with the converted labels
+#     plot_classification_results(model, y_pred, y_proba_test, y_test, y_train, target_name,save_folder=save_auc)
+
+#     if save_figures_path:
+#         # Temporarily suppress plt.show()
+#         original_show = plt.show
+#         plt.show = lambda: None
+#          # Plot ROC Curve using existing function
+#         average_auc = plot_roc_curve(y_test, y_proba_test, y_train, target_name, model.classes_, save_folder)
+#         plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png")  # Save the loss vs epochs plot
+#         plt.clf()  # Clear the plot
+
+#         # Plot Confusion Matrix using existing function
+#         plot_confusion_matrix(y_test, y_pred, target_name, model.classes_)
+
+#         plt.savefig(save_figures_path+"/cancer_confusion_matrix.png")  # Save the confusion matrix plot
+#         plt.clf()  # Clear the plot
+
+
+#         plot_separate_normalized_confusion_matrix(y_test, y_pred, target_name, model.classes_)
+
+#         plt.savefig(save_figures_path+"/cancer_confusion_matrix_Normalized.png")  # Save the confusion matrix plot
+#         plt.clf()  # Clear the plot
+
+#         # Restore plt.show
+#         plt.show = original_show
+
+
+
+
+
+
+
+  
+
+    
+#     model.scaler = scaler
+
+   
+
+   
+
+
+#     return model, average_auc
+
+
+import pandas as pd
+
+def test_trained_model(model, new_df, target_name='target'):
+    """
+    Tests the trained model on a new dataset and returns a DataFrame with probabilities.
+
+    Parameters:
+    - model (object): The trained model with an attached scaler.
+    - new_df (pd.DataFrame): The new dataset to predict on.
+    - target_name (str): The name of the target column.
+
+    Returns:
+    - results_df (pd.DataFrame): DataFrame with original indices and class probabilities.
+    """
+    if not hasattr(model, 'scaler'):
+        raise ValueError("The trained model does not have an attached scaler. Ensure you are using the correct trained model.")
+
+    # Extract features and scale them using the stored scaler
+    X_new = model.scaler.transform(new_df.drop(columns=[target_name], errors='ignore'))  # Ignore errors if target column is missing
+
+    # Make predictions
+    y_pred = model.predict(X_new)
+    y_proba = model.predict_proba(X_new)
+
+    # Convert probabilities into a DataFrame with the original index
+    class_labels = model.classes_  # Get class names
+    results_df = pd.DataFrame(y_proba, columns=[f"{cls}" for cls in class_labels], index=new_df.index)
+
+    # Add predicted labels
+    results_df["Predicted_Label"] = y_pred
+
+    return results_df
 
 
 
