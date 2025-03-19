@@ -4,11 +4,15 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import GridSearchCV
 import plots
+import matplotlib.pyplot as plt
+from sklearn.model_selection import StratifiedKFold
 
 from sklearn.model_selection import LeaveOneOut, GridSearchCV
 import numpy as np
+import os
 
-def train_model_loocv(train_data, test_data, response_col, model_class, param_grid, scoring="accuracy", cv_folds=5):
+
+def train_model_loocv(train_data, test_data, response_col, model_class, param_grid, scoring="accuracy", cv_folds=5, save_figures_path=None):
     """
     Trains a machine learning model using Leave-One-Out Cross-Validation (LOOCV).
     - First, finds the best hyperparameters using k-fold CV **on train_data only**.
@@ -35,17 +39,22 @@ def train_model_loocv(train_data, test_data, response_col, model_class, param_gr
     X_train = train_data.drop(columns=[response_col])
     y_train = train_data[response_col].astype("category")
 
+    
+    # Check if the model supports random_state
+    model_params = {"random_state": 0} if "random_state" in model_class().get_params() else {}
+
     # Define pipeline
     pipeline = Pipeline([
         ("scaler", StandardScaler()),
-        ("model", model_class())  # Placeholder model
+        ("model", model_class(**model_params))  # Placeholder model
     ])
 
     # Run Grid Search CV on Train Data
+    cv_strategy = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=0)
     grid_search = GridSearchCV(
         estimator=pipeline,
         param_grid={"model__" + key: value for param_set in param_grid for key, value in param_set.items()},
-        cv=cv_folds,
+        cv=cv_strategy,
         scoring=scoring,
         n_jobs=-1,
         verbose=1
@@ -69,6 +78,11 @@ def train_model_loocv(train_data, test_data, response_col, model_class, param_gr
     all_y_test = []  # Store all actual test labels
     #all_pred_probs = []  # ✅ Store all predicted probabilities for AUC calculation
 
+    # OOF storage with index preservation
+    original_indices = full_data.index
+    oof_data = []  
+    indices = []  # Store original indices
+
 
     for train_idx, test_idx in loo.split(X_full):
         X_train_loo, X_test_loo = X_full.iloc[train_idx], X_full.iloc[test_idx]
@@ -87,10 +101,28 @@ def train_model_loocv(train_data, test_data, response_col, model_class, param_gr
         # ✅ Store predictions correctly
         all_preds.append(y_pred_proba[0])  # Append as a NumPy array
         all_y_test.append(str(y_test_loo.iloc[0]))  # Store actual label as a string to avoid type mismatch
+
+
+    
+        # Store the OOF results
+        classes_for_oof_store = pipeline.named_steps["model"].classes_
+        row = {'True Label': y_test_loo.iloc[0]}
+        for class_idx, class_label in enumerate(classes_for_oof_store):
+            row[f'Probability_{class_label}'] = y_pred_proba[0, class_idx]
+        oof_data.append(row)
+        indices.append(original_indices[test_idx][0])  # Retrieve the original index correctly
       
     
 
    
+    
+    # Store the OOF results 
+    # Convert to DataFrame and set indices
+    oof_df = pd.DataFrame(oof_data, index=indices)
+    # Ensure index is restored correctly
+    oof_df.index.name = 'library'
+
+    
     # ✅ Convert stored predictions to arrays
    
     all_preds = np.vstack(all_preds)  # Stack into a single NumPy array
@@ -98,11 +130,16 @@ def train_model_loocv(train_data, test_data, response_col, model_class, param_gr
     # ✅ Ensure class labels come from `y_full` for consistency
     
     class_labels = pipeline.named_steps["model"].classes_
+
+
  
 
     
     all_pred_probs = all_preds
     all_preds = all_preds.argmax(axis=1)  # Get the index of the highest probability
+
+  
+
 
   
     # ✅ Convert stored predictions to arrays
@@ -117,8 +154,20 @@ def train_model_loocv(train_data, test_data, response_col, model_class, param_gr
 
 
     # ✅ Compute overall AUC and plot Confusion Matrix + ROC
+    original_show = plt.show
+    plt.show = lambda: None
     plots.plot_confusion_matrix(all_y_test, all_preds, target_name=response_col, classes=class_labels)
+    plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix.png",  dpi=300, bbox_inches='tight')
+    plt.clf()
+    plots.plot_separate_normalized_confusion_matrix(all_y_test, all_preds, target_name=response_col, classes=class_labels)           
+    plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix_Normalized.png",  dpi=300, bbox_inches='tight')
+    plt.clf()
+    
     average_auc = plots.plot_roc_curve( pd.Series(all_y_test), all_pred_probs, y_full, target_name=response_col, classes=class_labels)
+    plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png",  dpi=300, bbox_inches='tight')
+    plt.clf()
+    plt.show = original_show
+    
 
     print(f"\n📊 Final LOOCV AUC Score: {average_auc:.4f}")
 
@@ -130,7 +179,9 @@ def train_model_loocv(train_data, test_data, response_col, model_class, param_gr
     ])
     final_pipeline.fit(X_full, y_full)  # Train on full dataset
 
-    return final_pipeline, average_auc  # ✅ Returning the final trained model
+    
+
+    return final_pipeline, average_auc, oof_df  # ✅ Returning the final trained model
 
 
 def train_model(train_data, response_col, model_class, param_grid, cv=5, scoring='accuracy', n_jobs=-1):
@@ -156,17 +207,23 @@ def train_model(train_data, response_col, model_class, param_grid, cv=5, scoring
     # Standardization
     preprocessor = StandardScaler()
 
+  
+    # Check if the model supports random_state
+    model_params = {"random_state": 0} if "random_state" in model_class().get_params() else {}
+
+
     # Define the pipeline with a placeholder model
     pipeline = Pipeline([
         ("scaler", preprocessor),
-        ("model", model_class())  # Initialize model without parameters
+        ("model", model_class(**model_params))  # Initialize model without parameters
     ])
 
     # Define GridSearchCV
+    cv_strategy = StratifiedKFold(n_splits=cv, shuffle=True, random_state=0)
     grid_search = GridSearchCV(
         estimator=pipeline,
         param_grid={"model__" + key: value for param_set in param_grid for key, value in param_set.items()},
-        cv=cv,
+        cv=cv_strategy,
         scoring=scoring,
         n_jobs=n_jobs,
         verbose=1
@@ -182,7 +239,7 @@ def train_model(train_data, response_col, model_class, param_grid, cv=5, scoring
     return grid_search.best_estimator_
 
 
-def predict_model(model, data, target_column="cohort", plot_cm=False, plot_roc=False,save_folder=None):
+def predict_model(model, data,  target_column="cohort", plot_cm=False, plot_roc=False,save_folder=None, save_figures_path=None):
     """
     Predicts the output for the given dataset using the provided trained model.
 
@@ -233,13 +290,25 @@ def predict_model(model, data, target_column="cohort", plot_cm=False, plot_roc=F
 
     # Plot confusion matrix if ground truth labels are available
     if plot_cm and y_test is not None:
+        original_show = plt.show
+        plt.show = lambda: None
         plots.plot_confusion_matrix(y_test, y_pred, target_name=target_column, classes=class_labels)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix.png",  dpi=300, bbox_inches='tight')
+        plt.clf()
+                
         plots.plot_separate_normalized_confusion_matrix(y_test, y_pred, target_name=target_column, classes=class_labels)
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_confusion_matrix_Normalized.png",  dpi=300, bbox_inches='tight')
+        plt.clf()
+        plt.show = original_show
 
     # Plot ROC curve if enabled
     average_auc = None
     if plot_roc and y_test is not None:
+        original_show = plt.show
+        plt.show = lambda: None
         average_auc = plots.plot_roc_curve(y_test, pred_probs, data[target_column], target_name=target_column, classes=class_labels, save_folder=save_folder)
-
+        plt.savefig(save_figures_path+"/"+os.path.basename(save_figures_path)+"_cancer_roc.png",  dpi=300, bbox_inches='tight')
+        plt.clf()
+        plt.show = original_show
 
     return pred_df, average_auc  # Return predicted probabilities as before
